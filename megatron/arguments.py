@@ -40,6 +40,7 @@ def parse_args(extra_args_provider=None, defaults={},
     parser = _add_data_args(parser)
     parser = _add_autoresume_args(parser)
     parser = _add_realm_args(parser)
+    parser = _add_msa_args(parser)
 
     # Custom arguments.
     if extra_args_provider is not None:
@@ -606,4 +607,27 @@ def _add_realm_args(parser):
                        help='How large of batches to use when doing indexing jobs')
     group.add_argument('--indexer-log-interval', type=int, default=1000,
                        help='After how many batches should the indexer report progress')
+    return parser
+
+
+def _add_msa_args(parser):
+    group = parser.add_argument_group(title='msa transformer')
+
+    group.add_argument('--max-tokens', type=int, default=2 ** 14,
+                       help="Max number of token per MSA.")
+    group.add_argument('--max-aligns', type=int, default=2 * 10,
+                       help="Max alignments per MSA.")
+    group.add_argument('--max-length', type=int, default=2 * 10,
+                       help="Max length of alignments in MSA.")
+    group.add_argument('--msa-shuffle', type=int, default=1,
+                       help="Whether shuffle MSA, 1 for shuffle, 0 for no shuffle")
+    group.add_argument('--attention-save', action='store_true',
+                       help='Compute attention weights.')
+    group.add_argument('--attention-path', type=str, default=None,
+                       help='Output directory to save attention weights to.')
+    group.add_argument('--attention-freq', type=int, default=1000,
+                       help="Attention weights save frequency.")
+    group.add_argument('--attention-name', type=str, default=None,
+                       help='Attention output file suffix.')
+
     return parser

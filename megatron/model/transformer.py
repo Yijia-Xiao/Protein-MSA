@@ -117,8 +117,10 @@ class ParallelSelfAttention(MegatronModule):
     """
 
     def __init__(self, attention_mask_func, init_method,
-                 output_layer_init_method, layer_number):
+                 output_layer_init_method, layer_number, attention_type):
         super(ParallelSelfAttention, self).__init__()
+        assert attention_type in ['row', 'col'], \
+            "attention_type should be in ['row', 'col']"
         args = get_args()
         self.fp16 = args.fp16
 
@@ -128,6 +130,7 @@ class ParallelSelfAttention(MegatronModule):
         if self.apply_query_key_layer_scaling:
             self.attention_softmax_in_fp32 = True
         self.layer_number = max(1, layer_number)
+        self.attention_type = attention_type
 
         # Per attention head and per partition values.
         world_size = mpu.get_tensor_model_parallel_world_size()
@@ -279,6 +282,10 @@ class ParallelSelfAttention(MegatronModule):
 
         # change view to [b, np, sq, sk]
         attention_scores = matmul_result.view(*output_size)
+        if self.attention_type == 'row':
+            M = attention_scores.size(0)
+            attention_scores = torch.sum(attention_scores, dim=0).repeat(M, 1, 1, 1)
+            attention_scores /= math.sqrt(M)
 
 
         # ==================================================
@@ -410,9 +417,12 @@ class ParallelTransformerLayer(MegatronModule):
             eps=args.layernorm_epsilon)
 
         # Self attention.
-        self.attention = ParallelSelfAttention(attention_mask_func, init_method,
+        self.row_attention = ParallelSelfAttention(attention_mask_func, init_method,
                                                output_layer_init_method,
-                                               layer_number)
+                                               layer_number, attention_type='row')
+        self.col_attention = ParallelSelfAttention(attention_mask_func, init_method,
+                                               output_layer_init_method,
+                                               layer_number, attention_type='col')
         self.hidden_dropout = args.hidden_dropout
         self.bias_dropout_fusion = args.bias_dropout_fusion
 
@@ -432,11 +442,24 @@ class ParallelTransformerLayer(MegatronModule):
         # Layer norm at the begining of the transformer layer.
         layernorm_output = self.input_layernorm(hidden_states)
         # Self attention.
-        attention_output, attention_bias = \
-            self.attention(layernorm_output,
+        row_attention_output, row_attention_bias = \
+            self.row_attention(layernorm_output,
                            attention_mask,
                            layer_past=layer_past,
                            get_key_value=get_key_value)
+
+        row_attention_output = row_attention_output.transpose(0, 1)
+        input_shape = hidden_states.shape
+        attention_mask = torch.zeros((input_shape[0], 1, input_shape[1], input_shape[1]),
+                                     dtype=torch.bool, device=attention_mask.device)
+
+        attention_output, attention_bias = \
+            self.col_attention(row_attention_output,
+                           attention_mask,
+                           layer_past=layer_past,
+                           get_key_value=get_key_value)
+        attention_output = attention_output.transpose(0, 1)
+        attention_bias = attention_bias.transpose(0, 1)
 
         if get_key_value:
             attention_output, presents = attention_output

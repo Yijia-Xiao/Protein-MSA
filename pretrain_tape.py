@@ -78,10 +78,10 @@ def get_batch(data_iterator):
 
 
     # Unpack.
-    tokens = data_b['text'].long()
-    loss_mask = data_b['loss_mask'].float()
-    lm_labels = data_b['labels'].long()
-    padding_mask = data_b['padding_mask'].long()
+    tokens = data_b['text'].long()[0]
+    loss_mask = data_b['loss_mask'].float()[0]
+    lm_labels = data_b['labels'].long()[0]
+    padding_mask = data_b['padding_mask'].long()[0]
 
     # Get the masks and postition ids.
     attention_mask, position_ids = get_tape_masks_and_position_ids(

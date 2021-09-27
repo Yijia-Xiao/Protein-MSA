@@ -22,6 +22,7 @@ import numpy as np
 import torch
 
 
+from megatron import get_args
 from megatron import get_tokenizer
 from megatron import mpu, print_rank_0
 from megatron.data.blendable_dataset import BlendableDataset
@@ -155,6 +156,7 @@ class TAPEDataset(torch.utils.data.Dataset):
         self.sep_id = tokenizer.sep
         self.mask_id = tokenizer.mask
         self.pad_id = tokenizer.pad
+        self.msa_sep_id = tokenizer.msa_sep
 
     def __len__(self):
         # -1 is due to data structure used to retieve the index:
@@ -181,12 +183,13 @@ class TAPEDataset(torch.utils.data.Dataset):
                                      self.vocab_id_to_token_dict,
                                      self.cls_id, self.sep_id,
                                      self.mask_id, self.pad_id,
+                                     self.msa_sep_id,
                                      self.masked_lm_prob, np_rng)
 
 def build_training_sample(sample,
                           max_seq_length,
                           vocab_id_list, vocab_id_to_token_dict,
-                          cls_id, sep_id, mask_id, pad_id,
+                          cls_id, sep_id, mask_id, pad_id, msa_sep_id,
                           masked_lm_prob, np_rng):
     """Biuld training sample.
 
@@ -200,6 +203,7 @@ def build_training_sample(sample,
         sep_id: Separator id.
         mask_id: Mask token id.
         pad_id: Padding token id.
+        msa_sep_id: MSA split token id.
         masked_lm_prob: Probability to mask tokens.
         np_rng: Random number genenrator. Note that this rng state should be
               numpy and not python since python randint is inclusive for
@@ -207,28 +211,48 @@ def build_training_sample(sample,
     """
 
     # We assume that we have at least one sentence in the sample
-    assert len(sample) >= 1
+    assert len(sample) == 1, 'only support one MSA per batch'
 
     truncated = False
-    if len(sample[0]) + 1 > max_seq_length:
-        assert len(sample) == 1
-        sample[0] = sample[0][:max_seq_length - 1]
-        truncated = True
+    sample = sample[0]
+    args = get_args()
+    max_token_num = args.max_tokens
+    max_aligns = args.max_aligns
+    max_length = args.max_length
 
-    target_seq_length = sum([len(_)+1 for _ in sample])
-    assert target_seq_length <= max_seq_length
+    raw_length = sample.tolist().index(msa_sep_id)
+    sample = np.delete(sample, [raw_length], axis=0)
+    assert len(sample) % raw_length == 0, \
+        'MSA_TOTAL_LENGTH = MSA_ALIGNS * MSA_LENGTH'
+    raw_aligns = len(sample) // raw_length
 
-    max_num_tokens = target_seq_length
+    truncated = True if (len(sample) > max_token_num) \
+        else False
+
+    raw_msa_sample = sample.reshape(raw_aligns, raw_length)
+
+    align_priority = False
+    if align_priority:
+        msa_aligns = min(raw_aligns, max_aligns)
+        msa_length = min(raw_length, max_length, max_token_num // msa_aligns)
+    else:
+        msa_length = min(raw_length + 1, max_length)
+        msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
+
+    # -1: spare space for [CLS]
+    msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
 
     # Build tokens and toketypes.
     tokens = []
-    tokentypes = [0] * target_seq_length
-    for s in sample:
+    for s in msa_sample:
         tokens.append(cls_id)
         tokens += s.tolist()
 
+    target_seq_length = msa_aligns * msa_length
+    tokentypes = [0] * target_seq_length
+
     # Masking.
-    max_predictions_per_seq = masked_lm_prob * max_num_tokens
+    max_predictions_per_seq = masked_lm_prob * target_seq_length
     (tokens, masked_positions, masked_labels, _) = create_masked_lm_predictions(
         tokens, vocab_id_list, vocab_id_to_token_dict, masked_lm_prob,
         cls_id, sep_id, mask_id, max_predictions_per_seq, np_rng, max_ngrams=1, do_whole_word_mask=False)
@@ -236,15 +260,16 @@ def build_training_sample(sample,
     # Padding.
     tokens_np, tokentypes_np, labels_np, padding_mask_np, loss_mask_np \
         = pad_and_convert_to_numpy(tokens, tokentypes, masked_positions,
-                                   masked_labels, pad_id, max_seq_length)
+                                   masked_labels, pad_id, target_seq_length)
 
+    msa_shape = (msa_aligns, msa_length)
     train_sample = {
-        'text': tokens_np,
+        'text': tokens_np.reshape(msa_shape),
         # 'types': tokentypes_np,
-        'labels': labels_np,
+        'labels': labels_np.reshape(msa_shape),
         # 'is_random': int(is_next_random),
-        'loss_mask': loss_mask_np,
-        'padding_mask': padding_mask_np,
+        'loss_mask': loss_mask_np.reshape(msa_shape),
+        'padding_mask': padding_mask_np.reshape(msa_shape),
         'truncated': int(truncated)}
     return train_sample
 
@@ -396,6 +421,7 @@ def _build_sample_idx(sizes, doc_idx, seq_length,
     [number-of-samples + 1, 2] where [..., 0] contains
     the index into `doc_idx` and [..., 1] is the
     starting offset in that document."""
+    return np.arange(doc_idx.size, dtype=np.uint32)
 
     # Total number of samples. For -1 see comments in `_num_epochs`.
     num_samples = (num_epochs * tokens_per_epoch - 1) // seq_length
