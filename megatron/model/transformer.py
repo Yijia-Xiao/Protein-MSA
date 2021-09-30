@@ -19,7 +19,9 @@ import math
 import torch
 import torch.nn.functional as F
 
+import os
 from megatron import get_args
+from megatron import print_rank_0
 from megatron import mpu
 from .module import MegatronModule
 from megatron.checkpointing import get_checkpoint_version
@@ -54,6 +56,30 @@ torch._C._jit_override_can_fuse_on_gpu(True)
                masked-attention-scores = attention_mask_func(
                                      unmaksed-attention-scores, attention-mask)
 """
+
+class Collector(object):
+    __collect = list()
+
+    @classmethod
+    def append(cls, app):
+        cls.__collect.append(app)
+
+    @classmethod
+    def get_size(cls):
+        return len(cls.__collect)
+
+    @classmethod
+    def dump(cls, path):
+        rank = mpu.get_data_parallel_rank()
+        file_path = os.path.join(
+            path, str(rank) + '_' + get_args().attention_name + '.pt')
+        torch.save(cls.__collect, file_path)
+        print_rank_0(f'file saved to {file_path}, dp = {rank}')
+
+    @classmethod
+    def clear(cls):
+        cls.__collect.clear()
+
 
 class ParallelMLP(MegatronModule):
     """MLP.
@@ -286,6 +312,8 @@ class ParallelSelfAttention(MegatronModule):
             M = attention_scores.size(0)
             attention_scores = torch.sum(attention_scores, dim=0).repeat(M, 1, 1, 1)
             attention_scores /= math.sqrt(M)
+            if get_args().attention_save:
+                Collector.append(attention_scores[0].cpu().detach())
 
 
         # ==================================================
@@ -412,7 +440,10 @@ class ParallelTransformerLayer(MegatronModule):
 
         # Layernorm on the input data.
         LayerNorm = import_layernorm(args.fp32_residual_connection)
-        self.input_layernorm = LayerNorm(
+        self.row_input_layernorm = LayerNorm(
+            args.hidden_size,
+            eps=args.layernorm_epsilon)
+        self.col_input_layernorm = LayerNorm(
             args.hidden_size,
             eps=args.layernorm_epsilon)
 
@@ -426,6 +457,7 @@ class ParallelTransformerLayer(MegatronModule):
         self.hidden_dropout = args.hidden_dropout
         self.bias_dropout_fusion = args.bias_dropout_fusion
 
+        # (below layers are for FFN)
         # Layernorm on the input data.
         self.post_attention_layernorm = LayerNorm(
             args.hidden_size,
@@ -439,27 +471,15 @@ class ParallelTransformerLayer(MegatronModule):
                 get_key_value=False):
         # hidden_states: [b, s, h]
 
+        ## start row attention
         # Layer norm at the begining of the transformer layer.
-        layernorm_output = self.input_layernorm(hidden_states)
+        layernorm_output = self.row_input_layernorm(hidden_states)
         # Self attention.
-        row_attention_output, row_attention_bias = \
+        attention_output, attention_bias = \
             self.row_attention(layernorm_output,
                            attention_mask,
                            layer_past=layer_past,
                            get_key_value=get_key_value)
-
-        row_attention_output = row_attention_output.transpose(0, 1)
-        input_shape = hidden_states.shape
-        attention_mask = torch.zeros((input_shape[0], 1, input_shape[1], input_shape[1]),
-                                     dtype=torch.bool, device=attention_mask.device)
-
-        attention_output, attention_bias = \
-            self.col_attention(row_attention_output,
-                           attention_mask,
-                           layer_past=layer_past,
-                           get_key_value=get_key_value)
-        attention_output = attention_output.transpose(0, 1)
-        attention_bias = attention_bias.transpose(0, 1)
 
         if get_key_value:
             attention_output, presents = attention_output
@@ -489,6 +509,57 @@ class ParallelTransformerLayer(MegatronModule):
                 attention_bias.expand_as(residual),
                 residual,
                 self.hidden_dropout)
+        ## end row attention
+
+        ## start shape manipulation and mask construction
+        input_shape = hidden_states.shape
+        hidden_states = layernorm_input.transpose(0, 1)
+        attention_mask = torch.zeros((input_shape[0], 1, input_shape[1], input_shape[1]),
+                                     dtype=torch.bool, device=attention_mask.device)
+        ## end shape manipulation and mask construction
+
+        ## start col attention
+        # Layer norm at the begining of the transformer layer.
+        layernorm_output = self.col_input_layernorm(hidden_states)
+        # Self attention.
+        attention_output, attention_bias = \
+            self.col_attention(layernorm_output,
+                           attention_mask,
+                           layer_past=layer_past,
+                           get_key_value=get_key_value)
+
+        if get_key_value:
+            attention_output, presents = attention_output
+    
+        # Residual connection.
+        if self.apply_residual_connection_post_layernorm:
+            residual = layernorm_output
+        else:
+            residual = hidden_states
+
+        # jit scripting for a nn.module (with dropout) is not 
+        # trigerring the fusion kernel. For now, we use two 
+        # different nn.functional routines to account for varying
+        # dropout semantics during training and inference phases.
+        if self.bias_dropout_fusion:
+            if self.training:
+                bias_dropout_add_func = bias_dropout_add_fused_train
+            else:
+                bias_dropout_add_func = bias_dropout_add_fused_inference
+        else:
+            bias_dropout_add_func = get_bias_dropout_add(self.training)
+
+        #re-enable torch grad to enable fused optimization.
+        with torch.enable_grad():
+            layernorm_input = bias_dropout_add_func(
+                attention_output,
+                attention_bias.expand_as(residual),
+                residual,
+                self.hidden_dropout)
+        ## end row attention
+        
+        ## transpose col attention output
+        layernorm_input = layernorm_input.transpose(0, 1)
 
         # Layer norm post the self attention.
         layernorm_output = self.post_attention_layernorm(layernorm_input)

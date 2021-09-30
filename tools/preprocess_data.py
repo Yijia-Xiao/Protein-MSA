@@ -153,7 +153,7 @@ def main():
     encoder = Encoder(args)
     tokenizer = build_tokenizer(args)
     pool = multiprocessing.Pool(args.workers, initializer=encoder.initializer)
-    encoded_docs = pool.imap(encoder.encode, fin, 25)
+    encoded_docs = pool.imap(encoder.encode, fin, 72)
     #encoded_docs = map(encoder.encode, fin)
 
     level = "document"

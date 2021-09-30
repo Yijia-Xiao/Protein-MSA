@@ -273,6 +273,9 @@ def build_training_sample(sample,
         'truncated': int(truncated)}
     return train_sample
 
+    # id_to_tok = {0: '[PAD]', 1: '[MASK]', 2: '[CLS]', 3: '[SEP]', 4: '[UNK]', 5: 'A', 6: 'B', 7: 'C', 8: 'D', 9: 'E', 10: 'F', 11: 'G', 12: 'H', 13: 'I', 14: 'K', 15: 'L', 16: 'M', 17: 'N', 18: 'O', 19: 'P', 20: 'Q', 21: 'R', 22: 'S', 23: 'T', 24: 'U', 25: 'V', 26: 'W', 27: 'X', 28: 'Y', 29: 'Z', 30: '-', 31: '|'}
+    # seq = ''.join([id_to_tok[idx] for idx in raw_msa_sample[0]])
+    # return train_sample, seq
 
 def _num_tokens(documents, sizes, max_seq_length):
     """Total number of tokens in the dataset."""
