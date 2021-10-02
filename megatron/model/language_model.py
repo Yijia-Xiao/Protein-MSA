@@ -18,7 +18,7 @@
 import torch
 import torch.nn.functional as F
 
-from megatron import get_args
+from megatron import get_args, print_rank_0
 from megatron import mpu
 from .module import MegatronModule
 from megatron.model.transformer import ParallelTransformer
@@ -145,6 +145,14 @@ class Embedding(MegatronModule):
         # Initialize the position embeddings.
         self.init_method(self.position_embeddings.weight)
 
+        # MSA positional embedding
+        self.msa_max_aligns = get_args().max_aligns
+        self.msa_positional_embedding = torch.nn.Embedding(self.msa_max_aligns,
+                                                        self.hidden_size)
+        # Initialize the msa positoinal embeddings.
+        self.init_method(self.msa_positional_embedding.weight)
+        self._msa_positional_embedding_key = 'msa_positional_embeddings'
+
         # Token type embedding.
         # Add this as an optional field that can be added through
         # method call so we can load a pretrain model without
@@ -182,7 +190,12 @@ class Embedding(MegatronModule):
         # Embeddings.
         words_embeddings = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
-        embeddings = words_embeddings + position_embeddings
+        msa_position_ids = torch.arange(self.msa_max_aligns, device=position_embeddings.device)\
+            .reshape(-1, 1)\
+            .repeat(1, position_ids.size(1))
+        msa_positional_embeddings = self.msa_positional_embedding(msa_position_ids)
+
+        embeddings = words_embeddings + position_embeddings + msa_positional_embeddings
         if tokentype_ids is not None:
             assert self.tokentype_embeddings is not None
             embeddings = embeddings + self.tokentype_embeddings(tokentype_ids)
@@ -237,6 +250,18 @@ class Embedding(MegatronModule):
                     state_dict_[key.split('position_embeddings.')[1]] \
                         = state_dict[key]
         self.position_embeddings.load_state_dict(state_dict_, strict=strict)
+
+        if self.msa_positional_embedding:
+            if self._msa_positional_embedding_key in state_dict:
+                state_dict_ = state_dict[self._msa_positional_embedding_key]
+            else:
+                # for backward compatibility.
+                state_dict_ = {}
+                for key in state_dict.keys():
+                    if 'msa_positional_embeddings' in key:
+                        state_dict_[key.split('position_embeddings.')[1]] \
+                            = state_dict[key]
+            self.position_embeddings.load_state_dict(state_dict_, strict=strict)
 
         # Tokentype embedding.
         if self.num_tokentypes > 0:
