@@ -26,6 +26,7 @@ from megatron import get_timers
 from megatron import mpu
 from megatron.data.tape_dataset import build_train_valid_test_datasets
 from megatron.model import BertModel, BertModelFirstStage, BertModelIntermediateStage, BertModelLastStage
+from megatron.model.transformer import Collector
 from megatron.training import pretrain
 from megatron.utils import average_losses_across_data_parallel_group
 from megatron.utils import get_tape_masks_and_position_ids
@@ -74,6 +75,8 @@ def get_batch(data_iterator):
         data = next(data_iterator)
     else:
         data = None
+    # TODO: support protein string return
+    # data, seq = data
     data_b = mpu.broadcast_data(keys, data, datatype)
 
 
@@ -89,8 +92,10 @@ def get_batch(data_iterator):
         tokenizer.cls,
         reset_position_ids=True,
         reset_attention_mask=True)
-
-    return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids
+    # TODO: position_ids + 2
+    if get_args().fake_input:
+        position_ids += 2
+    return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
 
 
 def forward_step(data_iterator, model, input_tensor):
@@ -100,6 +105,8 @@ def forward_step(data_iterator, model, input_tensor):
 
     # Get the batch.
     timers('batch-generator').start()
+    # TODO: support protein string return
+    # tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids, seq \
     tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
@@ -110,6 +117,12 @@ def forward_step(data_iterator, model, input_tensor):
     if mpu.is_pipeline_first_stage():
         assert input_tensor is None
         if mpu.is_pipeline_last_stage():
+            if args.attention_save:
+                if tokens.shape[1] > 1023:
+                    print('skipping one sample')
+                    return 0, {'lm loss': 0}
+                # NOTICE: remember to change return function of `get_batch` function
+                # Collector.append(seq)
             output_tensor = model(tokens, extended_attention_mask, tokentype_ids=None,
                                   lm_labels=lm_labels, position_ids=position_ids)
         else:
@@ -161,3 +174,5 @@ if __name__ == "__main__":
 
     pretrain(train_valid_test_datasets_provider, model_provider, forward_step,
              args_defaults={'tokenizer_type': 'BertWordPieceLowerCase'})
+    if get_args().attention_save:
+        Collector.dump('/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention')

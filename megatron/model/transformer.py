@@ -72,7 +72,7 @@ class Collector(object):
     def dump(cls, path):
         rank = mpu.get_data_parallel_rank()
         file_path = os.path.join(
-            path, str(rank) + '_' + get_args().attention_name + '.pt')
+            path, get_args().attention_name + '.pt')
         torch.save(cls.__collect, file_path)
         print_rank_0(f'file saved to {file_path}, dp = {rank}')
 
@@ -301,17 +301,20 @@ class ParallelSelfAttention(MegatronModule):
             device=torch.cuda.current_device())
 
         # Raw attention scores. [b * np, sq, sk]
+        new_norm_factor = 1.0 / self.norm_factor
+        if self.attention_type == 'row':
+            new_norm_factor /=  math.sqrt(hidden_states.size(1))
         matmul_result = torch.baddbmm(matmul_result, 
             query_layer.transpose(0, 1),   # [b * np, sq, hn]
             key_layer.transpose(0,1).transpose(1, 2),  #[b * np, hn, sk]
-            beta=0.0, alpha=(1.0/self.norm_factor))
+            beta=0.0, alpha=new_norm_factor) # alpha=(1.0/self.norm_factor))
 
         # change view to [b, np, sq, sk]
         attention_scores = matmul_result.view(*output_size)
+        M = attention_scores.size(0)
         if self.attention_type == 'row':
-            M = attention_scores.size(0)
             attention_scores = torch.sum(attention_scores, dim=0).repeat(M, 1, 1, 1)
-            attention_scores /= math.sqrt(M)
+            # NOTICE: used for dumping col attention map
             if get_args().attention_save:
                 Collector.append(attention_scores[0].cpu().detach())
 

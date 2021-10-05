@@ -619,8 +619,8 @@ def _add_msa_args(parser):
                        help="Max alignments per MSA.")
     group.add_argument('--max-length', type=int, default=2 * 10,
                        help="Max length of alignments in MSA.")
-    group.add_argument('--msa-shuffle', type=int, default=1,
-                       help="Whether shuffle MSA, 1 for shuffle, 0 for no shuffle")
+    group.add_argument('--msa-shuffle', action='store_true',
+                       help='Whether shuffle MSA or not.')
     group.add_argument('--attention-save', action='store_true',
                        help='Compute attention weights.')
     group.add_argument('--attention-path', type=str, default=None,
@@ -629,5 +629,10 @@ def _add_msa_args(parser):
                        help="Attention weights save frequency.")
     group.add_argument('--attention-name', type=str, default=None,
                        help='Attention output file suffix.')
-
+    group.add_argument('--fake-input', action='store_true',
+                       help='Fake input.')
+    group.add_argument('--add-msa-positional-embedding', action='store_true',
+                       help='MSA positional embedding.')
+    group.add_argument('--add-post-embedding-layernorm', action='store_true',
+                       help='Add layernorm after word-wmbedding.')
     return parser

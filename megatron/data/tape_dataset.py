@@ -219,9 +219,15 @@ def build_training_sample(sample,
     max_token_num = args.max_tokens
     max_aligns = args.max_aligns
     max_length = args.max_length
+    is_fake = args.fake_input
+    if is_fake:
+        sample = np.load('/root/workspace/esm.npy')
+        raw_length = sample.shape[1]
+        sample = sample.reshape(-1)
+    else:
+        raw_length = sample.tolist().index(msa_sep_id)
+        sample = np.delete(sample, [raw_length], axis=0)
 
-    raw_length = sample.tolist().index(msa_sep_id)
-    sample = np.delete(sample, [raw_length], axis=0)
     assert len(sample) % raw_length == 0, \
         'MSA_TOTAL_LENGTH = MSA_ALIGNS * MSA_LENGTH'
     raw_aligns = len(sample) // raw_length
@@ -231,21 +237,32 @@ def build_training_sample(sample,
 
     raw_msa_sample = sample.reshape(raw_aligns, raw_length)
 
-    align_priority = False
-    if align_priority:
-        msa_aligns = min(raw_aligns, max_aligns)
-        msa_length = min(raw_length, max_length, max_token_num // msa_aligns)
-    else:
-        msa_length = min(raw_length + 1, max_length)
-        msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
+    if not is_fake:
+        align_priority = False
+        if align_priority:
+            msa_aligns = min(raw_aligns, max_aligns)
+            msa_length = min(raw_length, max_length, max_token_num // msa_aligns)
+        else:
+            msa_length = min(raw_length + 1, max_length)
+            msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
 
-    # -1: spare space for [CLS]
-    msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
+        # -1: spare space for [CLS]
+        msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
+    else:
+        msa_sample = raw_msa_sample
+        msa_aligns = len(msa_sample)
+        msa_length = len(msa_sample[0])
+
+    # TODO: shuffle MSA
+    if args.msa_shuffle:
+        # print('shuffle...')
+        np.random.shuffle(msa_sample[1: ])
 
     # Build tokens and toketypes.
     tokens = []
     for s in msa_sample:
-        tokens.append(cls_id)
+        if not is_fake:
+            tokens.append(cls_id)
         tokens += s.tolist()
 
     target_seq_length = msa_aligns * msa_length
@@ -271,11 +288,12 @@ def build_training_sample(sample,
         'loss_mask': loss_mask_np.reshape(msa_shape),
         'padding_mask': padding_mask_np.reshape(msa_shape),
         'truncated': int(truncated)}
-    return train_sample
 
-    # id_to_tok = {0: '[PAD]', 1: '[MASK]', 2: '[CLS]', 3: '[SEP]', 4: '[UNK]', 5: 'A', 6: 'B', 7: 'C', 8: 'D', 9: 'E', 10: 'F', 11: 'G', 12: 'H', 13: 'I', 14: 'K', 15: 'L', 16: 'M', 17: 'N', 18: 'O', 19: 'P', 20: 'Q', 21: 'R', 22: 'S', 23: 'T', 24: 'U', 25: 'V', 26: 'W', 27: 'X', 28: 'Y', 29: 'Z', 30: '-', 31: '|'}
-    # seq = ''.join([id_to_tok[idx] for idx in raw_msa_sample[0]])
+    # msa_vocab = {0: '[PAD]', 1: '[MASK]', 2: '[CLS]', 3: '[SEP]', 4: '[UNK]', 5: 'A', 6: 'B', 7: 'C', 8: 'D', 9: 'E', 10: 'F', 11: 'G', 12: 'H', 13: 'I', 14: 'K', 15: 'L', 16: 'M', 17: 'N', 18: 'O', 19: 'P', 20: 'Q', 21: 'R', 22: 'S', 23: 'T', 24: 'U', 25: 'V', 26: 'W', 27: 'X', 28: 'Y', 29: 'Z', 30: '-', 31: '|'}
+    # esm_vocab = {0: '<cls>', 1: '<pad>', 2: '<eos>', 3: '<unk>', 4: 'L', 5: 'A', 6: 'G', 7: 'V', 8: 'S', 9: 'E', 10: 'R', 11: 'T', 12: 'I', 13: 'D', 14: 'P', 15: 'K', 16: 'Q', 17: 'N', 18: 'F', 19: 'Y', 20: 'M', 21: 'H', 22: 'W', 23: 'C', 24: 'X', 25: 'B', 26: 'U', 27: 'Z', 28: 'O', 29: '.', 30: '-', 31: '<null_1>', 32: '<mask>', 33: '<sep>', 34: '|'}
+    # seq = [''.join([msa_vocab[idx] for idx in alig]) for alig in raw_msa_sample]
     # return train_sample, seq
+    return train_sample
 
 def _num_tokens(documents, sizes, max_seq_length):
     """Total number of tokens in the dataset."""
