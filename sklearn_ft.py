@@ -6,13 +6,32 @@ from scipy.spatial.distance import pdist, squareform
 from typing import List, Tuple
 import torch
 from sklearn.linear_model import Lasso, ElasticNet, LogisticRegression
+import logging
+import argparse
+import sys
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s:\t%(message)s"
+)
 
 DATA_ROOT = './data/contact-data/'
+parser = argparse.ArgumentParser(description="Parser for sklearn solver choice, MSA depth, and checkpoint etc.")
+parser.add_argument(
+    "--msa-depth", type=int, help="the depth of MSA"
+)
+parser.add_argument(
+    "--solver", type=str, choices=['liblinear', 'saga'], help="skelarn solver used for fitting logistic regression model, choose from ['liblinear', 'saga']"
+)
+parser.add_argument(
+    "--iter", type=int, help="take the checkpoint @iter"
+)
+args = parser.parse_args()
+logging.info(args)
+msa_depth = args.msa_depth
+sklearn_solver = args.solver
+ckpt_iter = args.iter
 
-import sys
-msa_depth = int(sys.argv[1])
-sklearn_solver = sys.argv[2]
-assert sklearn_solver in ['liblinear', 'saga'], 'sklearn solver error'
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
 id_to_char = dict()
@@ -81,7 +100,7 @@ def prepare_megatron():
         names = [i.split('.')[0] for i in os.listdir(label_path)]
         for name in names:
             data = process_one_sample(name)
-            # print(data['msa'])
+            # logging.info(data['msa'])
             with open(f'{DATA_ROOT}/megatron/test.json', 'a+') as f:
                 one_seq = data['msa'][0] + '|' + ''.join(data['msa'][1:])
                 one_seq = ' '.join(one_seq)
@@ -92,11 +111,11 @@ def prepare_megatron():
         return np.array(trRosetta_data, dtype=object)
 
     train = process_trRosetta()
-    print(len(train))
+    logging.info(len(train))
     np.save(f'{DATA_ROOT}/megatron/train_dataset', train, allow_pickle=True)
 
     test = process_CAMEO()
-    print(len(test))
+    logging.info(len(test))
     np.save(f'{DATA_ROOT}/megatron/test_dataset', test, allow_pickle=True)
 
 
@@ -111,8 +130,8 @@ def build_data():
         --output-prefix ./data/megatron/{} --dataset-impl mmap --workers 20"""
     # for i in tasks:
     #     os.system(cmd.format(i ,i))
-    print(cmd.format(tasks[0], tasks[0]))
-    print(cmd.format(tasks[1], tasks[1]))
+    logging.info(cmd.format(tasks[0], tasks[0]))
+    logging.info(cmd.format(tasks[1], tasks[1]))
 
 # build_data()
 # exit(0)
@@ -131,8 +150,8 @@ def megatron_predict():
     arg_dict = [['train', 21], ['test', 129]]
 
     # for arg in arg_dict:
-    print(cmd.format(arg_dict[0][0], arg_dict[0][1], arg_dict[0][0]))
-    print(cmd.format(arg_dict[1][0], arg_dict[1][1], arg_dict[1][0]))
+    logging.info(cmd.format(arg_dict[0][0], arg_dict[0][1], arg_dict[0][0]))
+    logging.info(cmd.format(arg_dict[1][0], arg_dict[1][1], arg_dict[1][0]))
 
 # megatron_predict()
 # CUDA_VISIBLE_DEVICES=1 python -m torch.distributed.launch --nproc_per_node 1 --nnodes 1 --node_rank 0 --master_addr localhost --master_port 7008 /dataset/ee84df8b/release/ProteinLM/pretrain/pretrain_tape.py --num-layers 12         --hidden-size 768 --num-attention-heads 12 --micro-batch-size 1 --global-batch-size 1 --seq-length 1024 --max-position-embeddings 1024 --train-iters 1         --data-path /dataset/ee84df8b/release/ProteinLM/pretrain/contact/data/megatron/train_text_document --vocab-file /root/release/ProteinLM/pretrain/msa_tools/msa_vocab.txt --data-impl mmap         --distributed-backend nccl --lr 0 --log-interval 1 --save-interval 2000 --eval-interval 1 --eval-iters 21 --max-tokens 262144 --max-aligns 256 --max-length 1024         --tensor-model-parallel-size 1 --no-scaled-masked-softmax-fusion --override-lr-scheduler --mask-prob 0 --split 0,0,1 --checkpoint-activations --attention-save         --attention-name train_256 --finetune --attention-path /dataset/ee84df8b/release/ProteinLM/pretrain/contact/data/pred-megatron/         --load /workspace/ckpt/release/768h-12l-12hd-1mbs-512gbs-1mp-16384tokens-256aligns-1024length-1600ws-100000iter-release
@@ -141,10 +160,10 @@ def megatron_predict():
 
 def load_predictions():
     train_data = torch.load('/workspace/dump/0_train.pt')[:-13]
-    # print(len(train_data))
+    # logging.info(len(train_data))
     test_data = torch.load('/workspace/dump/0_test.pt')
-    print(len(train_data))
-    print(len(test_data))
+    logging.info(len(train_data))
+    logging.info(len(test_data))
 
 # load_predictions()
 # exit(0)
@@ -153,11 +172,13 @@ def load_predictions():
 class MegatronFake(object):
     def __init__(self) -> None:
         super().__init__()
-        num_iter = 48000
-        # self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_train_depth{msa_depth}.pt')[:-13]
-        # self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_test_depth{msa_depth}.pt')
-        self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{num_iter}_train_depth{msa_depth}.pt')[:-13]
-        self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{num_iter}_test_depth{msa_depth}.pt')
+        """ path to the attention dump from esm's converted model
+            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_train_depth{msa_depth}.pt')[:-13]
+            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_test_depth{msa_depth}.pt')
+        """
+        # megatron trained model
+        self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
+        self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
         self.train_sample = 0
         self.test_sample = 0
 
@@ -295,11 +316,11 @@ def eval_unsupervised():
         label = sample['contact']
         heads = model.train_call(msa)[:, :, 1:, 1:]
         construct_train(heads, label)
-    print('start train')
-    print(f'{model.train_sample=}')
+    logging.info('start train')
+    logging.info(f'{model.train_sample=}')
     net = train_classification_net(esm_train, bin_train)
-    print('stop train')
-    print(net)
+    logging.info('stop train')
+    logging.info(net)
 
     with open('net.pickle', 'wb') as f:
         pickle.dump(net, f)
@@ -307,17 +328,17 @@ def eval_unsupervised():
     #     net = pickle.load(f)
 
     data = []
-    print('start eval')
+    logging.info('start eval')
     for sample in testset:
         data.append(sample)
         if len(data[-1]['msa'][0]) > 1024:
-            print(f'skipped one sample with length {len(data[-1]["msa"][0])}')
+            logging.info(f'skipped one sample with length {len(data[-1]["msa"][0])}')
             continue
-        print(data[-1]['msa'][0])
+        logging.info(data[-1]['msa'][0])
         try:
             heads = model.test_call(data[-1]['msa'][0])[:, :, 1:, 1:]
         except:
-            print('None Error')
+            logging.info('None Error')
             continue
         label = torch.from_numpy(np.array(data[-1]['binary_labels']))
         num_layer, num_head, seqlen, _ = heads.size()
@@ -332,19 +353,19 @@ def eval_unsupervised():
         for range_name in range_dic:
             for fra in frac_list:
                 cor, tot = calculate_contact_precision(data[-1]['name'], proba.clone(), label.clone(), local_range=range_dic[range_name], local_frac=fra)
-                print(cor.item(), tot)
+                # logging.info(cor.item(), tot)
                 eval_dic[range_name][fra]['cor'] += cor.item()
                 eval_dic[range_name][fra]['tot'] += tot
-
+        logging.info(eval_dic)
 
 eval_unsupervised()
-print(f'{model.train_sample=}')
-print(f'{model.test_sample=}')
+logging.info(f'{model.train_sample=}')
+logging.info(f'{model.test_sample=}')
 
-print(eval_dic)
+logging.info(eval_dic)
 for r in range_dic:
     for f in frac_list:
         eval_dic[r][f]['acc'] = eval_dic[r][f]['cor'] / eval_dic[r][f]['tot']
 
 
-print(eval_dic)
+logging.info(eval_dic)
