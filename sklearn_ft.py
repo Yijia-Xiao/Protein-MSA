@@ -8,7 +8,7 @@ import torch
 from sklearn.linear_model import Lasso, ElasticNet, LogisticRegression
 import logging
 import argparse
-import sys
+from joblib import Parallel, delayed
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,11 +26,15 @@ parser.add_argument(
 parser.add_argument(
     "--iter", type=int, help="take the checkpoint @iter"
 )
+parser.add_argument(
+    "--job-num", type=int, default=16, help="the number of jobs in proba prediction"
+)
 args = parser.parse_args()
 logging.info(args)
 msa_depth = args.msa_depth
 sklearn_solver = args.solver
 ckpt_iter = args.iter
+job_num = args.job_num
 
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
@@ -275,22 +279,14 @@ def apc(x):
     return normalized
 
 
-eval_dic = dict()
 range_dic = {'short': [6, 12], 'mid': [12, 24], 'long': [24, 2048], 'midlong': [12, 2048], 'all': [-1, 2048]} # , 'midlong': [12, 2048]}
-
 frac_list = [1, 2, 5]
-for r in range_dic:
-    eval_dic[r] = dict()
-    for f in frac_list:
-        eval_dic[r][f] = dict()
-        for c in ['cor', 'tot']:
-            eval_dic[r][f][c] = 0
 
 
 def eval_unsupervised():
     testset = np.load(f'{DATA_ROOT}/megatron/test_dataset.npy', allow_pickle=True)
 
-    data = []
+    # data = []
 
     esm_train = []
     bin_train = []
@@ -327,45 +323,86 @@ def eval_unsupervised():
     # with open('net.pickle', 'rb') as f:
     #     net = pickle.load(f)
 
-    data = []
-    logging.info('start eval')
+    test_call_res = list()
     for sample in testset:
-        data.append(sample)
-        if len(data[-1]['msa'][0]) > 1024:
-            logging.info(f'skipped one sample with length {len(data[-1]["msa"][0])}')
-            continue
-        logging.info(data[-1]['msa'][0])
         try:
-            heads = model.test_call(data[-1]['msa'][0])[:, :, 1:, 1:]
+            sample_heads = model.test_call(sample['msa'][0])[:, :, 1:, 1:]
         except:
-            logging.info('None Error')
             continue
-        label = torch.from_numpy(np.array(data[-1]['binary_labels']))
+        if len(sample['msa'][0]) <= 1024:
+            test_call_res.append((sample, sample_heads))
+    # print(test_call_res)
+    # data = []
+    logging.info('start eval')
+    parallel = Parallel(n_jobs=job_num, batch_size=1)
+    def predict_one_sample(sample_tuple):
+        sample, heads = sample_tuple
+        # if len(sample['msa'][0]) > 1024:
+        #     logging.info(f'skipped one sample with length {len(sample["msa"][0])}')
+        #     return dict()
+        logging.info(sample['msa'][0])
+
+        # try:
+        #     heads = model.test_call(sample['msa'][0])[:, :, 1:, 1:]
+        # except:
+        #     logging.info('None Error')
+        #     return dict()
+
+        label = torch.from_numpy(np.array(sample['binary_labels']))
         num_layer, num_head, seqlen, _ = heads.size()
         attentions = heads.view(num_layer * num_head, seqlen, seqlen)
         attentions = apc(symmetrize(attentions))
         attentions = attentions.permute(1, 2, 0)
 
         proba = net['net'].predict_proba(attentions.reshape(-1, 144).cpu())
-        # cor, tot = calculate_contact_precision(data[-1]['name'], torch.from_numpy(proba).to('cuda'), label.to('cuda'), local_range=range_, frac=frac)
-        proba = torch.from_numpy(proba).to('cuda').float()
-        label = label.to('cuda').float()
+        # proba = parallel(delayed(net['net'].predict_proba)(attentions.reshape(-1, 144)) for job_id in range(job_num))
+        # cor, tot = calculate_contact_precision(sample['name'], torch.from_numpy(proba).to('cuda'), label.to('cuda'), local_range=range_, frac=frac)
+        proba = torch.from_numpy(proba).float()
+        label = label.float()
+        eval_dic = dict()
+        for r in range_dic:
+            eval_dic[r] = dict()
+            for f in frac_list:
+                eval_dic[r][f] = dict()
+                for c in ['cor', 'tot']:
+                    eval_dic[r][f][c] = 0
+
         for range_name in range_dic:
             for fra in frac_list:
-                cor, tot = calculate_contact_precision(data[-1]['name'], proba.clone(), label.clone(), local_range=range_dic[range_name], local_frac=fra)
+                cor, tot = calculate_contact_precision(sample['name'], proba.clone(), label.clone(), local_range=range_dic[range_name], local_frac=fra)
                 # logging.info(cor.item(), tot)
                 eval_dic[range_name][fra]['cor'] += cor.item()
                 eval_dic[range_name][fra]['tot'] += tot
         logging.info(eval_dic)
+        return eval_dic
+    # for sample in testset:
+    eval_dict_list = parallel(delayed(predict_one_sample)(sample) for sample in test_call_res)
+    # logging.info(eval_dict_list)
+    merge_dict = dict()
+    for r in range_dic:
+        merge_dict[r] = dict()
+        for f in frac_list:
+            merge_dict[r][f] = dict()
+            for c in ['cor', 'tot']:
+                merge_dict[r][f][c] = 0
 
-eval_unsupervised()
+    for eval_di in eval_dict_list:
+        for r in range_dic:
+            for f in frac_list:
+                for c in ['cor', 'tot']:
+                    merge_dict[r][f][c] += eval_di[r][f][c]
+    # logging.info(merge_dict)
+    return merge_dict
+
+eval_dic = eval_unsupervised()
+
 logging.info(f'{model.train_sample=}')
 logging.info(f'{model.test_sample=}')
 
-logging.info(eval_dic)
+# logging.info(eval_dic)
 for r in range_dic:
     for f in frac_list:
         eval_dic[r][f]['acc'] = eval_dic[r][f]['cor'] / eval_dic[r][f]['tot']
 
 
-logging.info(eval_dic)
+# logging.info(eval_dic)
