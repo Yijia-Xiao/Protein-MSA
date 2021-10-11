@@ -165,18 +165,21 @@ def get_tape_masks_and_position_ids(data,
     micro_batch_size, seq_length = data.size()
 
     # Attention mask (lower triangular).
-    if reset_attention_mask:
-        att_mask_batch = micro_batch_size
-    else:
-        att_mask_batch = 1
-    attention_mask = torch.ones(
-        (att_mask_batch, seq_length, seq_length), device=data.device).view(
-            att_mask_batch, 1, seq_length, seq_length)
+    # if reset_attention_mask:
+    #     att_mask_batch = micro_batch_size
+    # else:
+    #     att_mask_batch = 1
+
+    # attention_mask = torch.ones(
+    #     (att_mask_batch, seq_length, seq_length), device=data.device).view(
+    #         att_mask_batch, 1, seq_length, seq_length)
 
     # Position ids.
     position_ids = torch.arange(seq_length, dtype=torch.long,
                                 device=data.device)
     position_ids = position_ids.unsqueeze(0).expand_as(data)
+    return position_ids
+
     # We need to clone as the ids will be modifed based on batch index.
     if reset_position_ids:
         position_ids = position_ids.clone()
@@ -195,17 +198,18 @@ def get_tape_masks_and_position_ids(data,
             for j in range(1, cls_index.size()[0]):
                 concat_cls = cls_index[j] 
                 # Mask attention loss.
-                if reset_attention_mask:
-                    attention_mask[b, 0, :concat_cls, concat_cls:] = 0
-                    attention_mask[b, 0, concat_cls:, :concat_cls] = 0
+                # if reset_attention_mask:
+                #     attention_mask[b, 0, :concat_cls, concat_cls:] = 0
+                #     attention_mask[b, 0, concat_cls:, :concat_cls] = 0
                 # Reset positions.
                 if reset_position_ids:
                     base = position_ids[b, concat_cls].clone()
                     position_ids[b, concat_cls:] -= base
 
     # Convert attention mask to binary:
-    attention_mask = (attention_mask < 0.5)
+    # attention_mask = (attention_mask < 0.5)
 
-    return attention_mask, position_ids
+    # return attention_mask, position_ids
+    return position_ids
 
 

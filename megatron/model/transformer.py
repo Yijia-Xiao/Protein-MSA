@@ -231,7 +231,8 @@ class ParallelSelfAttention(MegatronModule):
         
         return mixed_layer
 
-    def forward(self, hidden_states, attention_mask, layer_past=None,
+    # def forward(self, hidden_states, attention_mask, layer_past=None,
+    def forward(self, hidden_states, layer_past=None,
                 get_key_value=False):
         # hidden_states: [sq, b, h]
 
@@ -313,8 +314,9 @@ class ParallelSelfAttention(MegatronModule):
         attention_scores = matmul_result.view(*output_size)
         M = attention_scores.size(0)
         if self.attention_type == 'row':
-            attention_scores = torch.sum(attention_scores, dim=0).repeat(M, 1, 1, 1)
-            # attention_scores = torch.sum(attention_scores, dim=0, keepdim=True)
+            # attention_scores = torch.sum(attention_scores, dim=0).repeat(M, 1, 1, 1)
+            # ori_shape = attention_scores.shape
+            attention_scores = torch.sum(attention_scores, dim=0).expand_as(attention_scores)
             # NOTICE: used for dumping col attention map
             # if get_args().attention_save:
             #     Collector.append(attention_scores[0].cpu().detach())
@@ -324,18 +326,18 @@ class ParallelSelfAttention(MegatronModule):
         # Update attention mask for inference. [b, np, sq, sk]
         # ==================================================
 
-        if get_key_value:
-            with torch.no_grad():
-                if layer_past is not None:
-                    attention_mask = attention_mask[
-                        ...,
-                        attention_scores.size(3) - 1,
-                        :attention_scores.size(3)].unsqueeze(2)
-                else:
-                    attention_mask = attention_mask[
-                        ...,
-                        :attention_scores.size(3),
-                        :attention_scores.size(3)]
+        # if get_key_value:
+        #     with torch.no_grad():
+        #         if layer_past is not None:
+        #             attention_mask = attention_mask[
+        #                 ...,
+        #                 attention_scores.size(3) - 1,
+        #                 :attention_scores.size(3)].unsqueeze(2)
+        #         else:
+        #             attention_mask = attention_mask[
+        #                 ...,
+        #                 :attention_scores.size(3),
+        #                 :attention_scores.size(3)]
 
 
         # ===========================
@@ -472,7 +474,8 @@ class ParallelTransformerLayer(MegatronModule):
         self.mlp = ParallelMLP(init_method,
                                output_layer_init_method)
 
-    def forward(self, hidden_states, attention_mask, layer_past=None,
+    # def forward(self, hidden_states, attention_mask, layer_past=None,
+    def forward(self, hidden_states, layer_past=None,
                 get_key_value=False):
         # hidden_states: [b, s, h]
 
@@ -482,7 +485,7 @@ class ParallelTransformerLayer(MegatronModule):
         # Self attention.
         attention_output, attention_bias = \
             self.row_attention(layernorm_output,
-                           attention_mask,
+                        #    attention_mask,
                            layer_past=layer_past,
                            get_key_value=get_key_value)
 
@@ -517,10 +520,10 @@ class ParallelTransformerLayer(MegatronModule):
         ## end row attention
 
         ## start shape manipulation and mask construction
-        input_shape = hidden_states.shape
+        # input_shape = hidden_states.shape
         hidden_states = layernorm_input.transpose(0, 1)
-        attention_mask = torch.zeros((input_shape[0], 1, input_shape[1], input_shape[1]),
-                                     dtype=torch.bool, device=attention_mask.device)
+        # attention_mask = torch.zeros((input_shape[0], 1, input_shape[1], input_shape[1]),
+        #                              dtype=torch.bool, device=attention_mask.device)
         ## end shape manipulation and mask construction
 
         ## start col attention
@@ -529,7 +532,7 @@ class ParallelTransformerLayer(MegatronModule):
         # Self attention.
         attention_output, attention_bias = \
             self.col_attention(layernorm_output,
-                           attention_mask,
+                        #    attention_mask,
                            layer_past=layer_past,
                            get_key_value=get_key_value)
 
@@ -630,14 +633,14 @@ class ParallelTransformer(MegatronModule):
     def _get_layer(self, layer_number):
         return self.layers[layer_number]
 
-    def _checkpointed_forward(self, hidden_states, attention_mask):
+    def _checkpointed_forward(self, hidden_states): # , attention_mask):
         """Forward method with activation checkpointing."""
         def custom(start, end):
             def custom_forward(*inputs):
                 x_ = inputs[0]
                 for index in range(start, end):
                     layer = self._get_layer(index)
-                    x_ = layer(x_, inputs[1])
+                    x_ = layer(x_) # , inputs[1])
                 return x_
             return custom_forward
 
@@ -647,12 +650,13 @@ class ParallelTransformer(MegatronModule):
         while l < self.num_layers:
             hidden_states = mpu.checkpoint(
                 custom(l, l + self.checkpoint_num_layers),
-                hidden_states, attention_mask)
+                hidden_states) # , attention_mask)
             l += self.checkpoint_num_layers
 
         return hidden_states
 
-    def forward(self, hidden_states, attention_mask, layer_past=None,
+    # def forward(self, hidden_states, attention_mask, layer_past=None,
+    def forward(self, hidden_states, layer_past=None,
                 get_key_value=False):
 
         # Checks.
@@ -675,8 +679,8 @@ class ParallelTransformer(MegatronModule):
                 hidden_states = hidden_states.transpose(0, 1).contiguous()
 
         if self.checkpoint_activations:
-            hidden_states = self._checkpointed_forward(hidden_states,
-                                                       attention_mask)
+            hidden_states = self._checkpointed_forward(hidden_states) # ,
+                                                    #    attention_mask)
         else:
             if get_key_value:
                 presents = []
@@ -686,9 +690,10 @@ class ParallelTransformer(MegatronModule):
                 if layer_past is not None:
                     past = layer_past[index]
                 hidden_states = layer(hidden_states,
-                                      attention_mask,
+                                    #   attention_mask,
                                       layer_past=past,
                                       get_key_value=get_key_value)
+                # print(f'{hidden_states.sum()=}')
                 if get_key_value:
                     hidden_states, present = hidden_states
                     presents.append(present)

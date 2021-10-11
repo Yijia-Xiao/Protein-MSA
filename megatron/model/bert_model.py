@@ -33,6 +33,7 @@ def bert_attention_mask_func(attention_scores, attention_mask):
     return attention_scores
 
 def bert_extended_attention_mask(attention_mask):
+    print('calling' * 100)
     # We create a 3D attention mask from a 2D tensor mask.
     # [b, 1, s]
     attention_mask_b1s = attention_mask.unsqueeze(1)
@@ -162,20 +163,20 @@ class BertModelBase(MegatronModule):
                                                     init_method)
                 self._binary_head_key = 'binary_head'
 
-    def forward(self, bert_model_input, attention_mask,
+    def forward(self, bert_model_input, #  attention_mask,
                 tokentype_ids=None, lm_labels=None, position_ids=None):
 
-        extended_attention_mask = bert_extended_attention_mask(attention_mask) if attention_mask.dim() == 2 else attention_mask
+        # extended_attention_mask = bert_extended_attention_mask(attention_mask) if attention_mask.dim() == 2 else attention_mask
 
         kwargs = {}
         if mpu.is_pipeline_first_stage():
             input_ids = bert_model_input
             if position_ids is None:
                 position_ids = bert_position_ids(input_ids)
-            args = [input_ids, position_ids, extended_attention_mask]
+            args = [input_ids, position_ids] # , extended_attention_mask]
             kwargs['tokentype_ids'] = tokentype_ids
         else:
-            args = [bert_model_input, extended_attention_mask]
+            args = [bert_model_input] # , extended_attention_mask]
         lm_output = self.language_model(*args, **kwargs)
         if mpu.is_pipeline_last_stage() and self.add_binary_head:
             lm_output, pooled_output = lm_output
@@ -240,11 +241,11 @@ class BertModel(BertModelBase):
             add_binary_head=add_binary_head,
             parallel_output=parallel_output)
 
-    def forward(self, input_ids, attention_mask,
+    def forward(self, input_ids, # , attention_mask,
                 tokentype_ids=None, lm_labels=None, position_ids=None):
         return super(BertModel, self).forward(
             input_ids,
-            attention_mask,
+            # attention_mask,
             tokentype_ids=tokentype_ids,
             lm_labels=lm_labels,
             position_ids=position_ids)

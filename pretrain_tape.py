@@ -67,7 +67,7 @@ def get_batch(data_iterator):
 
     tokenizer = get_tokenizer()
     # Items and their type.
-    keys = ['text', 'labels', 'loss_mask', 'padding_mask']
+    keys = ['text', 'labels', 'loss_mask', 'offset'] # , 'padding_mask']
     datatype = torch.int64
 
     # Broadcast data.
@@ -77,6 +77,7 @@ def get_batch(data_iterator):
         data = None
     # TODO: support protein string return
     # data, seq = data
+    data, msa_shape = data
     data_b = mpu.broadcast_data(keys, data, datatype)
 
 
@@ -84,18 +85,40 @@ def get_batch(data_iterator):
     tokens = data_b['text'].long()[0]
     loss_mask = data_b['loss_mask'].float()[0]
     lm_labels = data_b['labels'].long()[0]
-    padding_mask = data_b['padding_mask'].long()[0]
+    offset = data_b['offset'].long()[0]
+    # padding_mask = data_b['padding_mask'].long()[0]
 
     # Get the masks and postition ids.
-    attention_mask, position_ids = get_tape_masks_and_position_ids(
-        tokens,
-        tokenizer.cls,
-        reset_position_ids=True,
-        reset_attention_mask=True)
+    # micro_batch_size, seq_length = data.size()
+
+    # Attention mask (lower triangular).
+    # if reset_attention_mask:
+    #     att_mask_batch = micro_batch_size
+    # else:
+    #     att_mask_batch = 1
+
+    # attention_mask = torch.ones(
+    #     (att_mask_batch, seq_length, seq_length), device=data.device).view(
+    #         att_mask_batch, 1, seq_length, seq_length)
+
+    # Position ids.
+    # seq_aligns, seq_length = msa_shape
+    # TODO: well done debug: here I can found the bug in offset -1 (cause insertion of [CLS]), max_offset should be 256, not 257
+    # print(f'{msa_shape[1].item()=}, {offset=}')
+    position_ids = (torch.arange(msa_shape[1].item(), dtype=torch.long,
+                                device=tokens.device) + offset).unsqueeze(0).expand_as(tokens)
+    # position_ids = position_ids
+
+
     # TODO: position_ids + 2
-    if get_args().fake_input:
-        position_ids += 2
-    return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
+    # if get_args().fake_input:
+    #     position_ids += 2
+    # position_ids = (torch.arange(msa_shape[1].item(), dtype=torch.long,
+    #                             device=tokens.device) + 2).unsqueeze(0).expand_as(tokens)
+
+    # return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
+    # print(f'{tokens=}, {loss_mask=}, {lm_labels=}, {position_ids=}')
+    return tokens, loss_mask, lm_labels, position_ids
 
 
 def forward_step(data_iterator, model, input_tensor):
@@ -107,11 +130,11 @@ def forward_step(data_iterator, model, input_tensor):
     timers('batch-generator').start()
     # TODO: support protein string return
     # tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids, seq \
-    tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids \
+    tokens, loss_mask, lm_labels, position_ids \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
 
-    extended_attention_mask = bert_extended_attention_mask(padding_mask) + attention_mask
+    # extended_attention_mask = bert_extended_attention_mask(padding_mask) + attention_mask
 
     # Forward pass through the model.
     if mpu.is_pipeline_first_stage():
@@ -123,16 +146,16 @@ def forward_step(data_iterator, model, input_tensor):
             #         return 0, {'lm loss': 0}
                 # NOTICE: remember to change return function of `get_batch` function
                 # Collector.append(seq)
-            output_tensor = model(tokens, extended_attention_mask, tokentype_ids=None,
+            output_tensor = model(tokens, tokentype_ids=None,
                                   lm_labels=lm_labels, position_ids=position_ids)
         else:
-            output_tensor = model(tokens, extended_attention_mask, tokentype_ids=None)
+            output_tensor = model(tokens, tokentype_ids=None)
     elif mpu.is_pipeline_last_stage():
         assert input_tensor is not None
-        output_tensor = model(input_tensor, extended_attention_mask, lm_labels=lm_labels)
+        output_tensor = model(input_tensor, lm_labels=lm_labels)
     else:
         assert input_tensor is not None
-        output_tensor = model(input_tensor, extended_attention_mask, position_ids=position_ids)
+        output_tensor = model(input_tensor, position_ids=position_ids)
 
     if mpu.is_pipeline_last_stage():
         lm_loss_, _ = output_tensor

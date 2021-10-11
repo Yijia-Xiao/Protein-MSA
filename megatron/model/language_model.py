@@ -208,9 +208,13 @@ class Embedding(MegatronModule):
         words_embeddings = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
         if self.add_msa_positional_embedding:
-            msa_position_ids = torch.arange(input_ids.size(0), device=position_embeddings.device)\
-                .reshape(-1, 1)\
-                .repeat(1, position_ids.size(1))
+            # msa_position_ids = torch.arange(input_ids.size(0), device=position_embeddings.device)\
+            #     .reshape(-1, 1)\
+            #     .repeat(1, position_ids.size(1))
+            msa_position_ids = torch.arange(input_ids.size(0), device=position_embeddings.device).unsqueeze(1).expand_as(input_ids)
+            # """    position_ids = torch.arange(seq_length, dtype=torch.long,
+            #                                 device=tokens.device).unsqueeze(0).expand_as(tokens)"""
+
             msa_positional_embeddings = self.msa_positional_embedding(msa_position_ids)
 
             embeddings = words_embeddings + position_embeddings + msa_positional_embeddings
@@ -379,7 +383,7 @@ class TransformerLanguageModelBase(MegatronModule):
             self.pooler = Pooler(self.hidden_size, self.init_method)
             self._pooler_key = 'pooler'
 
-    def forward(self, language_model_input, attention_mask,
+    def forward(self, language_model_input, # attention_mask,
                 tokentype_ids=None, layer_past=None, get_key_value=False,
                 pooling_sequence_index=0):
 
@@ -394,7 +398,7 @@ class TransformerLanguageModelBase(MegatronModule):
 
         # Transformer.
         transformer_output = self.transformer(transformer_input,
-                                              attention_mask,
+                                            #   attention_mask,
                                               layer_past=layer_past,
                                               get_key_value=get_key_value)
 
@@ -477,12 +481,12 @@ class TransformerLanguageModel(TransformerLanguageModelBase):
             num_tokentypes=num_tokentypes,
             add_pooler=add_pooler)
 
-    def forward(self, input_ids, position_ids, attention_mask,
+    def forward(self, input_ids, position_ids, # attention_mask,
                 tokentype_ids=None, layer_past=None, get_key_value=False,
                 pooling_sequence_index=0):
         return super(TransformerLanguageModel, self).forward(
             (input_ids, position_ids),
-            attention_mask,
+            # attention_mask,
             tokentype_ids=tokentype_ids,
             layer_past=layer_past,
             get_key_value=get_key_value,
