@@ -105,8 +105,11 @@ def get_batch(data_iterator):
     # seq_aligns, seq_length = msa_shape
     # TODO: well done debug: here I can found the bug in offset -1 (cause insertion of [CLS]), max_offset should be 256, not 257
     # print(f'{msa_shape[1].item()=}, {offset=}')
-    position_ids = (torch.arange(msa_shape[1].item(), dtype=torch.long,
-                                device=tokens.device) + offset).unsqueeze(0).expand_as(tokens)
+    position_ids = torch.arange(msa_shape[1].item(), dtype=torch.long,
+                                device=tokens.device) + offset
+    position_ids[0] = 0
+    # print(f'{position_ids=}')
+    position_ids = position_ids.unsqueeze(0).expand_as(tokens)
     # position_ids = position_ids
 
 

@@ -14,21 +14,21 @@ NNODES=8
 # LAYERNUM=16
 MP=1
 g_bs=256
-LAYERNUM=16
+LAYERNUM=14
 HIDDENSIZE=2048
 HEAD=16
 
 # MAX_TOKENS=16384
 # MAX_TOKENS=65536
-MAX_TOKENS=18432
-MAX_ALIGNS=384
+MAX_TOKENS=12288
+MAX_ALIGNS=512
 # MAX_LENGTH=1024
 MAX_LENGTH=768
 
 BATCHSIZE=1
 DATE=release
 
-WS=2000
+WS=1600
 ITER=200000
 
 # g_bs=64
@@ -82,6 +82,8 @@ NCCL_IB_DISABLE=0
 NCCL_IB_GID_INDEX=3
 NCCL_NET_GDR_LEVEL=0
 
+SE_ITER=500
+
 (python -m torch.distributed.launch $DISTRIBUTED_ARGS \
        $MYPATH/pretrain_tape.py \
        --num-layers $LAYERNUM \
@@ -103,8 +105,8 @@ NCCL_NET_GDR_LEVEL=0
        --clip-grad 1.0 \
        --lr-warmup-iters $WS \
        --log-interval 1 \
-       --save-interval 1000 \
-       --eval-interval 1000 \
+       --save-interval $SE_ITER \
+       --eval-interval $SE_ITER \
        --eval-iters 100 \
        --max-tokens $MAX_TOKENS \
        --max-aligns $MAX_ALIGNS \

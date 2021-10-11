@@ -263,9 +263,12 @@ def build_training_sample(sample,
     #     msa_length = len(msa_sample[0])
 
     # if raw_length <= max_length - 1:
-    offset = 0 if (raw_length < max_length) else random.randint(0, (raw_length - max_length + 2))
+    len_truncate = raw_length < max_length
+    # start_idx = 0 if len_truncate else random.randint(0, (raw_length - max_length + 2))
+    # TODO: donnot be greedy, last one should be discarded, leave space for [CLS]
+    offset = 0 if len_truncate else random.randint(0, (raw_length - max_length + 1))
     # print(f'{raw_length=}, {max_length=}')
-    msa_length = (raw_length + 1) if (raw_length < max_length) else max_length
+    msa_length = (raw_length + 1) if len_truncate else max_length
     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
     # assert offset + msa_length - 1 <= raw_length, 'over bound'
     msa_sample = raw_msa_sample[: msa_aligns, offset: offset + msa_length - 1]
@@ -293,10 +296,11 @@ def build_training_sample(sample,
     # Build tokens and toketypes.
     tokens = []
     for s in msa_sample:
-        if not is_fake:
-            tokens.append(cls_id)
+        # if not is_fake:
+        #     tokens.append(cls_id)
+        tokens.append(cls_id)
         tokens += s.tolist()
-    offset -= 1
+    # offset -= 1
 
     target_seq_length = msa_aligns * msa_length
     # print(f'{target_seq_length=}, {msa_aligns=}, {msa_length=}, {len(tokens)=}')
