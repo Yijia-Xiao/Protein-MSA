@@ -96,7 +96,8 @@ class FusedScaleMaskSoftmax(torch.nn.Module):
         assert self.scale is None or softmax_in_fp32, \
             'softmax should be in fp32 when scaled'
 
-    def forward(self, input, mask):
+    # def forward(self, input, mask):
+    def forward(self, input):
         # [b, np, s, s]
         data_size = input.size()
         assert input.dim() == 4 
@@ -105,6 +106,7 @@ class FusedScaleMaskSoftmax(torch.nn.Module):
         if self.input_in_fp16 and data_size[-1] <= 2048 and \
             (self.upper_triang_mask_fusion or self.general_mask_fusion) and \
             input.size()[2] == input.size()[3]:
+            print('$' * 100)
             scale = self.scale if self.scale is not None  else 1.0
             if self.upper_triang_mask_fusion:
                 input = input.view(-1, data_size[2], data_size[3])
@@ -113,13 +115,24 @@ class FusedScaleMaskSoftmax(torch.nn.Module):
             else:
                 probs = ScaledMaskedSoftmax.apply(input, mask, scale)
         else:
+            # print('#' * 100)
             if self.input_in_fp16 and self.softmax_in_fp32:
+                # print('%' * 100)
+                # True
                 input = input.float()
 
             if self.scale is not None:
+                # print('&' * 100)
+                # True
                 input = input * self.scale
-            mask_output = self.mask_func(input, mask)
-            probs = torch.nn.Softmax(dim=-1)(mask_output)
+            # mask_output = self.mask_func(input, mask)
+            # probs = torch.nn.Softmax(dim=-1)(mask_output)
+
+            # mask_output = self.mask_func(input, mask)
+            # probs = torch.nn.Softmax(dim=-1)(mask_output)
+
+            # mask_output = self.mask_func(input, mask)
+            probs = torch.nn.Softmax(dim=-1)(input)
 
             if self.input_in_fp16 and self.softmax_in_fp32:
                 probs = probs.half()

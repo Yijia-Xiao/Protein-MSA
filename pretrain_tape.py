@@ -117,10 +117,10 @@ def forward_step(data_iterator, model, input_tensor):
     if mpu.is_pipeline_first_stage():
         assert input_tensor is None
         if mpu.is_pipeline_last_stage():
-            if args.attention_save:
-                if tokens.shape[1] > 1023:
-                    print('skipping one sample')
-                    return 0, {'lm loss': 0}
+            # if args.attention_save:
+            #     if tokens.shape[1] > 1023:
+            #         print('skipping one sample')
+            #         return 0, {'lm loss': 0}
                 # NOTICE: remember to change return function of `get_batch` function
                 # Collector.append(seq)
             output_tensor = model(tokens, extended_attention_mask, tokentype_ids=None,
@@ -174,5 +174,5 @@ if __name__ == "__main__":
 
     pretrain(train_valid_test_datasets_provider, model_provider, forward_step,
              args_defaults={'tokenizer_type': 'BertWordPieceLowerCase'})
-    if get_args().attention_save:
-        Collector.dump('/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention')
+    # if get_args().attention_save:
+    #     Collector.dump('/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention')

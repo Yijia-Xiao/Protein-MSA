@@ -314,9 +314,10 @@ class ParallelSelfAttention(MegatronModule):
         M = attention_scores.size(0)
         if self.attention_type == 'row':
             attention_scores = torch.sum(attention_scores, dim=0).repeat(M, 1, 1, 1)
+            # attention_scores = torch.sum(attention_scores, dim=0, keepdim=True)
             # NOTICE: used for dumping col attention map
-            if get_args().attention_save:
-                Collector.append(attention_scores[0].cpu().detach())
+            # if get_args().attention_save:
+            #     Collector.append(attention_scores[0].cpu().detach())
 
 
         # ==================================================
@@ -342,8 +343,9 @@ class ParallelSelfAttention(MegatronModule):
         # ===========================
 
         # attention scores and attention mask [b, np, sq, sk]
-        attention_probs = self.scale_mask_softmax(attention_scores,
-                                                  attention_mask)
+        # attention_probs = self.scale_mask_softmax(attention_scores,
+        #                                           attention_mask)
+        attention_probs = self.scale_mask_softmax(attention_scores)
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
