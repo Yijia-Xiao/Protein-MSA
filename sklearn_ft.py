@@ -405,4 +405,4 @@ for r in range_dic:
         eval_dic[r][f]['acc'] = eval_dic[r][f]['cor'] / eval_dic[r][f]['tot']
 
 
-# logging.info(eval_dic)
+logging.info(eval_dic)
