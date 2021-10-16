@@ -35,7 +35,7 @@ msa_depth = args.msa_depth
 sklearn_solver = args.solver
 ckpt_iter = args.iter
 job_num = args.job_num
-
+max_len = 768
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
 id_to_char = dict()
@@ -181,33 +181,35 @@ class MegatronFake(object):
             self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_test_depth{msa_depth}.pt')
         """
         # megatron trained model
-        self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
-        self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
+        # self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
+        # self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
+        self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-15]
+        self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')[:-15]
         self.train_sample = 0
         self.test_sample = 0
-
+        self.gap = 15
         for idx in range(0, len(self.train_data)):
-            if idx % 13 == 0:
+            if idx % self.gap == 0:
                 continue
             self.train_data[idx] = self.train_data[idx].float().softmax(dim=-1)
 
         for idx in range(0, len(self.test_data)):
-            if idx % 13 == 0:
+            if idx % self.gap == 0:
                 continue
             self.test_data[idx] = self.test_data[idx].float().softmax(dim=-1)
 
     def train_call(self, input_seq):
-        for idx in range(0, len(self.train_data), 13):
+        for idx in range(0, len(self.train_data), self.gap):
             # if input_seq in self.train_data[idx][0]:
             if input_seq in self.train_data[idx][0][0]:
                 self.train_sample += 1
-                return torch.stack(self.train_data[idx + 1: idx + 13])
+                return torch.stack(self.train_data[idx + 1: idx + self.gap])
 
     def test_call(self, input_seq):
-        for idx in range(0, len(self.test_data), 13):
+        for idx in range(0, len(self.test_data), self.gap):
             if input_seq == self.test_data[idx][0][0]:
                 self.test_sample += 1
-                return torch.stack(self.test_data[idx + 1: idx + 13])
+                return torch.stack(self.test_data[idx + 1: idx + self.gap])
 
 
 model = MegatronFake()
@@ -309,9 +311,10 @@ def eval_unsupervised():
     trainset = np.load(f'{DATA_ROOT}/megatron/train_dataset.npy', allow_pickle=True)
     for sample in trainset:
         msa = sample['msa'][0]
-        label = sample['contact']
-        heads = model.train_call(msa)[:, :, 1:, 1:]
-        construct_train(heads, label)
+        if len(msa) <= max_len:
+                label = sample['contact']
+                heads = model.train_call(msa)[:, :, 1:, 1:]
+                construct_train(heads, label)
     logging.info('start train')
     logging.info(f'{model.train_sample=}')
     net = train_classification_net(esm_train, bin_train)
@@ -329,7 +332,7 @@ def eval_unsupervised():
             sample_heads = model.test_call(sample['msa'][0])[:, :, 1:, 1:]
         except:
             continue
-        if len(sample['msa'][0]) <= 1024:
+        if len(sample['msa'][0]) <= max_len:
             test_call_res.append((sample, sample_heads))
     # print(test_call_res)
     # data = []
@@ -354,7 +357,8 @@ def eval_unsupervised():
         attentions = apc(symmetrize(attentions))
         attentions = attentions.permute(1, 2, 0)
 
-        proba = net['net'].predict_proba(attentions.reshape(-1, 144).cpu())
+        proba = net['net'].predict_proba(attentions.reshape(-1, 224).cpu())
+        # proba = net['net'].predict_proba(attentions.reshape(-1, 144).cpu())
         # proba = parallel(delayed(net['net'].predict_proba)(attentions.reshape(-1, 144)) for job_id in range(job_num))
         # cor, tot = calculate_contact_precision(sample['name'], torch.from_numpy(proba).to('cuda'), label.to('cuda'), local_range=range_, frac=frac)
         proba = torch.from_numpy(proba).float()

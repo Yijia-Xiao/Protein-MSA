@@ -77,7 +77,7 @@ def get_batch(data_iterator):
         data = None
     # TODO: support protein string return
     # data, seq = data
-    data, msa_shape = data
+    data, msa_shape, seq = data
     data_b = mpu.broadcast_data(keys, data, datatype)
 
 
@@ -121,7 +121,7 @@ def get_batch(data_iterator):
 
     # return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
     # print(f'{tokens=}, {loss_mask=}, {lm_labels=}, {position_ids=}')
-    return tokens, loss_mask, lm_labels, position_ids
+    return tokens, loss_mask, lm_labels, position_ids, seq
 
 
 def forward_step(data_iterator, model, input_tensor):
@@ -133,7 +133,7 @@ def forward_step(data_iterator, model, input_tensor):
     timers('batch-generator').start()
     # TODO: support protein string return
     # tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids, seq \
-    tokens, loss_mask, lm_labels, position_ids \
+    tokens, loss_mask, lm_labels, position_ids, seq \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
 
@@ -143,12 +143,16 @@ def forward_step(data_iterator, model, input_tensor):
     if mpu.is_pipeline_first_stage():
         assert input_tensor is None
         if mpu.is_pipeline_last_stage():
-            # if args.attention_save:
-            #     if tokens.shape[1] > 1023:
-            #         print('skipping one sample')
-            #         return 0, {'lm loss': 0}
+            if args.attention_save:
+                # if tokens.shape[1] > 1023:
+                eval_max_length = 256
+                eval_max_length = 768
+                print(f'len={tokens.shape[1]}')
+                if tokens.shape[1] > eval_max_length:
+                    print(f'skipping one sample longer than {eval_max_length}, len={tokens.shape[1]}')
+                    return 0, {'lm loss': 0}
                 # NOTICE: remember to change return function of `get_batch` function
-                # Collector.append(seq)
+                Collector.append(seq)
             output_tensor = model(tokens, tokentype_ids=None,
                                   lm_labels=lm_labels, position_ids=position_ids)
         else:
@@ -200,5 +204,5 @@ if __name__ == "__main__":
 
     pretrain(train_valid_test_datasets_provider, model_provider, forward_step,
              args_defaults={'tokenizer_type': 'BertWordPieceLowerCase'})
-    # if get_args().attention_save:
-    #     Collector.dump('/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention')
+    if get_args().attention_save:
+        Collector.dump('/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention')

@@ -318,8 +318,8 @@ class ParallelSelfAttention(MegatronModule):
             # ori_shape = attention_scores.shape
             attention_scores = torch.sum(attention_scores, dim=0).expand_as(attention_scores)
             # NOTICE: used for dumping col attention map
-            # if get_args().attention_save:
-            #     Collector.append(attention_scores[0].cpu().detach())
+            if get_args().attention_save:
+                Collector.append(attention_scores[0].cpu().detach().float())
 
 
         # ==================================================
