@@ -30,7 +30,7 @@ parser.add_argument(
     "--job-num", type=int, default=16, help="the number of jobs in proba prediction"
 )
 parser.add_argument(
-    "--model-scale", type=str, choices=['1b', '100m'], help="model scale"
+    "--model-scale", type=str, choices=['1b', '100m', '140m'], help="model scale"
 )
 
 args = parser.parse_args()
@@ -40,7 +40,10 @@ sklearn_solver = args.solver
 ckpt_iter = args.iter
 job_num = args.job_num
 model_scale = args.model_scale
-max_len = 768
+if model_scale == '1b':
+    max_len = 768
+elif model_scale == '100m' or model_scale == '140m':
+    max_len = 1024
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
 id_to_char = dict()
@@ -194,6 +197,10 @@ class MegatronFake(object):
             self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
             self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
             self.gap = 13
+        elif model_scale == '140m':
+            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-9]
+            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
+            self.gap = 9
 
         self.train_sample = 0
         self.test_sample = 0
@@ -210,13 +217,15 @@ class MegatronFake(object):
     def train_call(self, input_seq):
         for idx in range(0, len(self.train_data), self.gap):
             # if input_seq in self.train_data[idx][0]:
-            if input_seq in self.train_data[idx][0][0]:
+            if input_seq == self.train_data[idx][0][0]:
+                # print('match') # 20 times
                 self.train_sample += 1
                 return torch.stack(self.train_data[idx + 1: idx + self.gap])
 
     def test_call(self, input_seq):
         for idx in range(0, len(self.test_data), self.gap):
             if input_seq == self.test_data[idx][0][0]:
+                # print(input_seq, self.test_data[idx][0][0])
                 self.test_sample += 1
                 return torch.stack(self.test_data[idx + 1: idx + self.gap])
 
@@ -340,6 +349,7 @@ def eval_unsupervised():
         try:
             sample_heads = model.test_call(sample['msa'][0])[:, :, 1:, 1:]
         except:
+            print('test_call failed')
             continue
         if len(sample['msa'][0]) <= max_len:
             test_call_res.append((sample, sample_heads))
@@ -366,7 +376,7 @@ def eval_unsupervised():
         attentions = apc(symmetrize(attentions))
         attentions = attentions.permute(1, 2, 0)
 
-        proba = net['net'].predict_proba(attentions.reshape(-1, 224).cpu())
+        proba = net['net'].predict_proba(attentions.reshape(-1, num_layer * num_head).cpu())
         # proba = net['net'].predict_proba(attentions.reshape(-1, 144).cpu())
         # proba = parallel(delayed(net['net'].predict_proba)(attentions.reshape(-1, 144)) for job_id in range(job_num))
         # cor, tot = calculate_contact_precision(sample['name'], torch.from_numpy(proba).to('cuda'), label.to('cuda'), local_range=range_, frac=frac)

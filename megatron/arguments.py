@@ -635,4 +635,6 @@ def _add_msa_args(parser):
                        help='MSA positional embedding.')
     group.add_argument('--add-post-embedding-layernorm', action='store_true',
                        help='Add layernorm after word-wmbedding.')
+    group.add_argument('--eval-max-length', type=int, default=1024,
+                       help='Max inference length')
     return parser

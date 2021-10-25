@@ -145,8 +145,7 @@ def forward_step(data_iterator, model, input_tensor):
         if mpu.is_pipeline_last_stage():
             if args.attention_save:
                 # if tokens.shape[1] > 1023:
-                eval_max_length = 256
-                eval_max_length = 768
+                eval_max_length = args.eval_max_length
                 print(f'len={tokens.shape[1]}')
                 if tokens.shape[1] > eval_max_length:
                     print(f'skipping one sample longer than {eval_max_length}, len={tokens.shape[1]}')
