@@ -29,12 +29,17 @@ parser.add_argument(
 parser.add_argument(
     "--job-num", type=int, default=16, help="the number of jobs in proba prediction"
 )
+parser.add_argument(
+    "--model-scale", type=str, choices=['1b', '100m'], help="model scale"
+)
+
 args = parser.parse_args()
 logging.info(args)
 msa_depth = args.msa_depth
 sklearn_solver = args.solver
 ckpt_iter = args.iter
 job_num = args.job_num
+model_scale = args.model_scale
 max_len = 768
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
@@ -181,13 +186,17 @@ class MegatronFake(object):
             self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_test_depth{msa_depth}.pt')
         """
         # megatron trained model
-        # self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
-        # self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
-        self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-15]
-        self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')[:-15]
+        if model_scale == '1b':
+            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-15]
+            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')[:-15]
+            self.gap = 15
+        elif model_scale == '100m':
+            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
+            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
+            self.gap = 13
+
         self.train_sample = 0
         self.test_sample = 0
-        self.gap = 15
         for idx in range(0, len(self.train_data)):
             if idx % self.gap == 0:
                 continue

@@ -48,6 +48,7 @@ DATA_PATH=/workspace/DATA/UniRef50-xc-a2m-2017/UniRef50-xc-a2m-2017_text_documen
 DATA_PATH=/workspace/DATA/UniRef50-xd-a2m-2018/UniRef50-xd-a2m-2018_text_document
 # UniRef50-xc-a2m-2017
 DATA_PATH=/workspace/DATA/TOTAL/TOTAL_text_document
+DATA_PATH=/root/DATA/TOTAL_text_document
 # #OLD=1
 # if [ -z $OLD ]; then
 #   DATA_PATH=/workspace/XA/XA_KING_text_document
