@@ -30,7 +30,7 @@ parser.add_argument(
     "--job-num", type=int, default=16, help="the number of jobs in proba prediction"
 )
 parser.add_argument(
-    "--model-scale", type=str, choices=['1b', '100m', '140m'], help="model scale"
+    "--model-scale", type=str, choices=['1b', '100m', '140m', '60m'], help="model scale"
 )
 
 args = parser.parse_args()
@@ -42,7 +42,7 @@ job_num = args.job_num
 model_scale = args.model_scale
 if model_scale == '1b':
     max_len = 768
-elif model_scale == '100m' or model_scale == '140m':
+elif model_scale == '100m' or model_scale == '140m' or model_scale == '60m':
     max_len = 1024
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
@@ -201,6 +201,10 @@ class MegatronFake(object):
             self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-9]
             self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
             self.gap = 9
+        elif model_scale == '60m':
+            self.gap = 7
+            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
 
         self.train_sample = 0
         self.test_sample = 0
