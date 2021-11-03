@@ -35,6 +35,21 @@ from megatron.data.gpt_dataset import _build_doc_idx, _build_shuffle_idx, _num_e
 from megatron.data.dataset_utils import pad_and_convert_to_numpy
 from megatron.data.dataset_utils import create_masked_lm_predictions
 
+
+class IterCounter(object):
+    __NUM_ITER = None
+
+    @classmethod
+    def set_iter(cls, num_iter):
+        """Initialize iters."""
+        cls.__NUM_ITER = num_iter
+
+    @classmethod
+    def get_iter(cls):
+        """Return num iters."""
+        return cls.__NUM_ITER
+
+
 def build_train_valid_test_datasets(data_prefix, data_impl, splits_string,
                                     train_valid_test_num_samples, seq_length,
                                     masked_lm_prob, seed, skip_warmup):

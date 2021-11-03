@@ -16,7 +16,7 @@ split_name = sys.argv[1]
 print(f'start {split_name}')
 data_path = f'/dataset/ee84df8b/20210816/protein/data/data/{split_name}'
 
-out_folder = f'/workspace/data/{split_name}'
+out_folder = f'/dataset/ee84df8b/MSA/{split_name}'
 os.system(f'mkdir -p {out_folder}')
 out_file = f'{out_folder}/{split_name}.json'
 
