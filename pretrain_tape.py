@@ -32,7 +32,7 @@ from megatron.utils import average_losses_across_data_parallel_group
 from megatron.utils import get_tape_masks_and_position_ids
 
 from megatron.model.bert_model import bert_extended_attention_mask
-
+from megatron import IterCounter
 
 def model_provider():
     """Build the model."""
@@ -61,13 +61,18 @@ def model_provider():
 
     return model
 
+def tokens_to_seq(raw_msa_sample):
+    msa_vocab = {0: '[PAD]', 1: '[MASK]', 2: '[CLS]', 3: '[SEP]', 4: '[UNK]', 5: 'A', 6: 'B', 7: 'C', 8: 'D', 9: 'E', 10: 'F', 11: 'G', 12: 'H', 13: 'I', 14: 'K', 15: 'L', 16: 'M', 17: 'N', 18: 'O', 19: 'P', 20: 'Q', 21: 'R', 22: 'S', 23: 'T', 24: 'U', 25: 'V', 26: 'W', 27: 'X', 28: 'Y', 29: 'Z', 30: '-', 31: '|'}
+    seq = [''.join([msa_vocab[idx] for idx in alig]) for alig in raw_msa_sample]
+    return seq
+
 
 def get_batch(data_iterator):
     """Build the batch."""
 
     tokenizer = get_tokenizer()
     # Items and their type.
-    keys = ['text', 'labels', 'loss_mask', 'offset'] # , 'padding_mask']
+    keys = ['text', 'labels', 'loss_mask', 'offset', 'msa_aligns', 'msa_length', 'raw_msa_sample'] # , 'padding_mask']
     datatype = torch.int64
 
     # Broadcast data.
@@ -77,7 +82,7 @@ def get_batch(data_iterator):
         data = None
     # TODO: support protein string return
     # data, seq = data
-    data, msa_shape, seq = data
+    # data, msa_shape, seq = data
     data_b = mpu.broadcast_data(keys, data, datatype)
 
 
@@ -86,6 +91,10 @@ def get_batch(data_iterator):
     loss_mask = data_b['loss_mask'].float()[0]
     lm_labels = data_b['labels'].long()[0]
     offset = data_b['offset'].long()[0]
+    msa_aligns = data_b['msa_aligns'].long()[0]
+    msa_length = data_b['msa_length'].long()[0]
+    raw_msa_sample = data_b['raw_msa_sample'].long()[0]
+    msa_shape = (msa_aligns, msa_length)
     # padding_mask = data_b['padding_mask'].long()[0]
 
     # Get the masks and postition ids.
@@ -121,6 +130,7 @@ def get_batch(data_iterator):
 
     # return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
     # print(f'{tokens=}, {loss_mask=}, {lm_labels=}, {position_ids=}')
+    seq = tokens_to_seq(raw_msa_sample) if get_args().attention_save else []
     return tokens, loss_mask, lm_labels, position_ids, seq
 
 
@@ -136,8 +146,7 @@ def forward_step(data_iterator, model, input_tensor):
     tokens, loss_mask, lm_labels, position_ids, seq \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
-    from megatron.data.tape_dataset import IterCounter
-    print('get...', IterCounter.get_iter())
+    print_rank_0('in-pretrain_tape.py get... {}'.format(IterCounter.get_iter()))
 
     # extended_attention_mask = bert_extended_attention_mask(padding_mask) + attention_mask
 

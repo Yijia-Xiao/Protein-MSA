@@ -54,3 +54,19 @@ def print_rank_last(message):
             print(message, flush=True)
     else:
         print(message, flush=True)
+
+
+class IterCounter(object):
+    # NUM_ITER = None
+    NUM_ITER = 0
+
+    @classmethod
+    def set_iter(cls, num_iter):
+        """Initialize iters."""
+        print_rank_0('set... {}'.format(num_iter))
+        cls.NUM_ITER = num_iter
+
+    @classmethod
+    def get_iter(cls):
+        """Return num iters."""
+        return cls.NUM_ITER

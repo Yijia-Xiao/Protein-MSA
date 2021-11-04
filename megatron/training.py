@@ -48,6 +48,7 @@ from megatron.model.realm_model import ICTBertModel
 from megatron.utils import check_adlr_autoresume_termination
 from megatron.data.data_loaders import build_pretraining_data_loader
 from megatron.utils import report_memory
+from megatron.data.tape_dataset import IterCounter
 
 
 def print_datetime(string):
@@ -798,7 +799,6 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
     print_datetime('before the start of training step')
     report_memory_flag = True
     while iteration < args.train_iters:
-        from megatron.data.tape_dataset import IterCounter
         IterCounter.set_iter(iteration)
         update_num_microbatches(args.consumed_train_samples)
         loss_dict, skipped_iter = train_step(forward_step_func,

@@ -16,7 +16,9 @@ split_name = sys.argv[1]
 print(f'start {split_name}')
 data_path = f'/dataset/ee84df8b/20210816/protein/data/data/{split_name}'
 
-out_folder = f'/dataset/ee84df8b/MSA/{split_name}'
+out_folder = f'/root/MSA/{split_name}'
+# out_folder = f'/dataset/ee84df8b/{split_name}'
+
 os.system(f'mkdir -p {out_folder}')
 out_file = f'{out_folder}/{split_name}.json'
 
@@ -24,8 +26,8 @@ files = os.listdir(data_path)
 
 NUM_THREAD = 52
 
-MAX_DEPTH = 512
-MAX_LENGTH = 1024
+MAX_DEPTH = 2048
+MAX_LENGTH = 65536
 
 def process_file(proc_idx, file_list):
     for fd in tqdm.tqdm(file_list):
@@ -57,6 +59,10 @@ pool.join()
 cat_cmd = '/bin/cat ' + ' '.join([os.path.join(out_folder, str(idx)) for idx in range(NUM_THREAD)]) + '> ' + out_file
 # print(cat_cmd)
 os.system(cat_cmd)
+
+for idx in range(NUM_THREAD):
+    os.remove(os.path.join(out_folder, str(idx)))
+# '/bin/cat ' + ' '.join([os.path.join(out_folder, str(idx)) for idx in range(NUM_THREAD)])
 
 # manager = Manager()
 # return_dict = manager.dict()

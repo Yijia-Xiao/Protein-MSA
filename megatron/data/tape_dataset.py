@@ -34,20 +34,7 @@ from megatron.data.indexed_dataset import make_dataset as make_indexed_dataset
 from megatron.data.gpt_dataset import _build_doc_idx, _build_shuffle_idx, _num_epochs, get_indexed_dataset_
 from megatron.data.dataset_utils import pad_and_convert_to_numpy
 from megatron.data.dataset_utils import create_masked_lm_predictions
-
-
-class IterCounter(object):
-    __NUM_ITER = None
-
-    @classmethod
-    def set_iter(cls, num_iter):
-        """Initialize iters."""
-        cls.__NUM_ITER = num_iter
-
-    @classmethod
-    def get_iter(cls):
-        """Return num iters."""
-        return cls.__NUM_ITER
+from megatron import IterCounter
 
 
 def build_train_valid_test_datasets(data_prefix, data_impl, splits_string,
@@ -354,10 +341,13 @@ def build_training_sample(sample,
         'loss_mask': loss_mask_np.reshape(msa_shape),
         # 'padding_mask': padding_mask_np.reshape(msa_shape),
         'truncated': int(truncated),
-        'offset': offset}
+        'offset': offset,
+        'msa_aligns': msa_aligns,
+        'msa_length': msa_length,
+        'raw_msa_sample': raw_msa_sample.astype(tokens_np.dtype)
+        }
 
-    seq = tokens_to_seq(raw_msa_sample) if args.attention_save else []
-    return train_sample, msa_shape, seq
+    return train_sample
 
 def _num_tokens(documents, sizes, max_seq_length):
     """Total number of tokens in the dataset."""
