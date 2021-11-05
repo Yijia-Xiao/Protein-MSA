@@ -61,9 +61,10 @@ def model_provider():
 
     return model
 
-def tokens_to_seq(raw_msa_sample):
+def tokens_to_seq(alig):
     msa_vocab = {0: '[PAD]', 1: '[MASK]', 2: '[CLS]', 3: '[SEP]', 4: '[UNK]', 5: 'A', 6: 'B', 7: 'C', 8: 'D', 9: 'E', 10: 'F', 11: 'G', 12: 'H', 13: 'I', 14: 'K', 15: 'L', 16: 'M', 17: 'N', 18: 'O', 19: 'P', 20: 'Q', 21: 'R', 22: 'S', 23: 'T', 24: 'U', 25: 'V', 26: 'W', 27: 'X', 28: 'Y', 29: 'Z', 30: '-', 31: '|'}
-    seq = [''.join([msa_vocab[idx] for idx in alig]) for alig in raw_msa_sample]
+    # seq = [''.join([msa_vocab[idx.item()] for idx in alig]) for alig in raw_msa_sample]
+    seq = ''.join([msa_vocab[idx.item()] for idx in alig])
     return seq
 
 
@@ -130,7 +131,7 @@ def get_batch(data_iterator):
 
     # return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
     # print(f'{tokens=}, {loss_mask=}, {lm_labels=}, {position_ids=}')
-    seq = tokens_to_seq(raw_msa_sample) if get_args().attention_save else []
+    seq = tokens_to_seq(raw_msa_sample[0]) if get_args().attention_save else []
     return tokens, loss_mask, lm_labels, position_ids, seq
 
 
@@ -146,7 +147,7 @@ def forward_step(data_iterator, model, input_tensor):
     tokens, loss_mask, lm_labels, position_ids, seq \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
-    print_rank_0('in-pretrain_tape.py get... {}'.format(IterCounter.get_iter()))
+    # print_rank_0('in-pretrain_tape.py get... {}'.format(IterCounter.get_iter()))
 
     # extended_attention_mask = bert_extended_attention_mask(padding_mask) + attention_mask
 
@@ -215,4 +216,4 @@ if __name__ == "__main__":
     pretrain(train_valid_test_datasets_provider, model_provider, forward_step,
              args_defaults={'tokenizer_type': 'BertWordPieceLowerCase'})
     if get_args().attention_save:
-        Collector.dump('/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention')
+        Collector.dump('./data/attention')

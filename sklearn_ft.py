@@ -152,12 +152,12 @@ def build_data():
 
 
 def megatron_predict():
-    cmd = """CUDA_VISIBLE_DEVICES=1 python -m torch.distributed.launch --nproc_per_node 1 --nnodes 1 --node_rank 0 --master_addr localhost --master_port 7008 /dataset/ee84df8b/release/ProteinLM/pretrain/pretrain_tape.py --num-layers 12 \
+    cmd = """CUDA_VISIBLE_DEVICES=1 python -m torch.distributed.launch --nproc_per_node 1 --nnodes 1 --node_rank 0 --master_addr localhost --master_port 7008 ./pretrain_tape.py --num-layers 12 \
         --hidden-size 768 --num-attention-heads 12 --micro-batch-size 1 --global-batch-size 1 --seq-length 1024 --max-position-embeddings 1024 --train-iters 1 \
-        --data-path /dataset/ee84df8b/release/ProteinLM/pretrain/contact/data/megatron/{}_text_document --vocab-file /root/release/ProteinLM/pretrain/msa_tools/msa_vocab.txt --data-impl mmap \
+        --data-path ./contact/data/megatron/{}_text_document --vocab-file /root/release/ProteinLM/pretrain/msa_tools/msa_vocab.txt --data-impl mmap \
         --distributed-backend nccl --lr 0 --log-interval 1 --save-interval 2000 --eval-interval 1 --eval-iters {} --max-tokens 262144 --max-aligns 256 --max-length 1024 \
         --tensor-model-parallel-size 1 --no-scaled-masked-softmax-fusion --override-lr-scheduler --mask-prob 0 --split 0,0,1 --checkpoint-activations --attention-save \
-        --attention-name {} --finetune --attention-path /dataset/ee84df8b/release/ProteinLM/pretrain/contact/data/pred-megatron/ \
+        --attention-name {} --finetune --attention-path ./contact/data/pred-megatron/ \
         --load /workspace/ckpt/release/768h-12l-12hd-1mbs-512gbs-1mp-16384tokens-256aligns-1024length-1600ws-100000iter-release"""
     arg_dict = [['train', 21], ['test', 129]]
 
@@ -184,27 +184,23 @@ def load_predictions():
 class MegatronFake(object):
     def __init__(self) -> None:
         super().__init__()
-        """ path to the attention dump from esm's converted model
-            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_train_depth{msa_depth}.pt')[:-13]
-            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/esm_style_test_depth{msa_depth}.pt')
-        """
         # megatron trained model
         if model_scale == '1b':
-            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-15]
-            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')[:-15]
             self.gap = 15
+            self.train_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
         elif model_scale == '100m':
-            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-13]
-            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
             self.gap = 13
+            self.train_data = torch.load(f'./data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/megatron_{ckpt_iter}_test_depth{msa_depth}.pt')
         elif model_scale == '140m':
-            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-9]
-            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
             self.gap = 9
+            self.train_data = torch.load(f'./data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/140m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
         elif model_scale == '60m':
             self.gap = 7
-            self.train_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
-            self.test_data = torch.load(f'/dataset/ee84df8b/release/ProteinLM/pretrain/data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
+            self.train_data = torch.load(f'./data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
 
         self.train_sample = 0
         self.test_sample = 0
@@ -221,14 +217,14 @@ class MegatronFake(object):
     def train_call(self, input_seq):
         for idx in range(0, len(self.train_data), self.gap):
             # if input_seq in self.train_data[idx][0]:
-            if input_seq == self.train_data[idx][0][0]:
+            if input_seq == self.train_data[idx]:
                 # print('match') # 20 times
                 self.train_sample += 1
                 return torch.stack(self.train_data[idx + 1: idx + self.gap])
 
     def test_call(self, input_seq):
         for idx in range(0, len(self.test_data), self.gap):
-            if input_seq == self.test_data[idx][0][0]:
+            if input_seq == self.test_data[idx]:
                 # print(input_seq, self.test_data[idx][0][0])
                 self.test_sample += 1
                 return torch.stack(self.test_data[idx + 1: idx + self.gap])
