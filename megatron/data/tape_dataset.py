@@ -223,7 +223,7 @@ def build_training_sample(sample,
     # We assume that we have at least one sentence in the sample
     assert len(sample) == 1, 'only support one MSA per batch'
 
-    truncated = False
+    # truncated = False
     sample = sample[0]
     args = get_args()
     max_token_num = args.max_tokens
@@ -242,8 +242,8 @@ def build_training_sample(sample,
         'MSA_TOTAL_LENGTH = MSA_ALIGNS * MSA_LENGTH'
     raw_aligns = len(sample) // raw_length
 
-    truncated = True if (len(sample) > max_token_num) \
-        else False
+    # truncated = True if (len(sample) > max_token_num) \
+    #     else False
 
     raw_msa_sample = sample.reshape(raw_aligns, raw_length)
 
@@ -251,6 +251,7 @@ def build_training_sample(sample,
     if args.msa_shuffle:
         np.random.shuffle(raw_msa_sample[1: ])
 
+    # Full process start
     msa_length = min(raw_length + 1, max_length)
     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
     msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
@@ -281,6 +282,8 @@ def build_training_sample(sample,
                                    masked_labels, pad_id, target_seq_length)
 
     msa_shape = (msa_aligns, msa_length)
+    # Full process end
+
     train_sample = {
         'text': tokens_np.reshape(msa_shape),
         # 'types': tokentypes_np,
@@ -288,7 +291,7 @@ def build_training_sample(sample,
         # 'is_random': int(is_next_random),
         'loss_mask': loss_mask_np.reshape(msa_shape),
         # 'padding_mask': padding_mask_np.reshape(msa_shape),
-        'truncated': int(truncated),
+        # 'truncated': int(truncated),
         'offset': offset,
         'msa_aligns': msa_aligns,
         'msa_length': msa_length,
