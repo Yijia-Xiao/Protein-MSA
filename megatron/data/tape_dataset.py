@@ -247,65 +247,13 @@ def build_training_sample(sample,
 
     raw_msa_sample = sample.reshape(raw_aligns, raw_length)
 
-    # if not is_fake:
-    #     # align_priority = False
-    #     # if align_priority:
-    #     #     msa_aligns = min(raw_aligns, max_aligns)
-    #     #     msa_length = min(raw_length, max_length, max_token_num // msa_aligns)
-    #     # else:
-    #     #     msa_length = min(raw_length + 1, max_length)
-    #     #     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
-
-    #     if raw_length <= max_length - 1:
-    #         offset = 0
-    #         msa_length = raw_length + 1
-    #     else: # raw_length >= max_length
-    #         # [, ); low < high
-    #         offset = random.randint(0, (raw_length - max_length + 1))
-    #         msa_length = max_length
-    #     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
-    #     msa_sample = raw_msa_sample[: msa_aligns, offset: offset + msa_length - 1]
-    # else:
-    #     offset = 2
-    #     msa_sample = raw_msa_sample
-    #     msa_aligns = len(msa_sample)
-    #     msa_length = len(msa_sample[0])
-
-    # start: shifting MSA
-    # # if raw_length <= max_length - 1:
-    # len_truncate = raw_length < max_length
-    # # start_idx = 0 if len_truncate else random.randint(0, (raw_length - max_length + 2))
-    # # TODO: donnot be greedy, last one should be discarded, leave space for [CLS]
-    # offset = 0 if len_truncate else random.randint(0, (raw_length - max_length + 1))
-    # # print(f'{raw_length=}, {max_length=}')
-    # msa_length = (raw_length + 1) if len_truncate else max_length
-    # msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
-    # # assert offset + msa_length - 1 <= raw_length, 'over bound'
-    # msa_sample = raw_msa_sample[: msa_aligns, offset: offset + msa_length - 1]
-    # end: shifting MSA
-
     msa_length = min(raw_length + 1, max_length)
     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
     msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
     offset = 0
-    # # raw 1023, max 768, msa_length 1024
-    # msa_length = min(raw_length + 1, max_length)
-    # msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
-    # # max_offset = 256    # (1024 - 768)
-    # # print(f'{msa_length=}')
-    # # offset = random.randint(0, 256)
-    # offset = random.randint(0, raw_length - msa_length)
-    # # print(offset)
-    # # -1: spare space for [CLS]
-    # # msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
-    # # msa_sample = raw_msa_sample[offset: offset + msa_aligns, : msa_length - 1]
-    # msa_sample = raw_msa_sample[: msa_aligns, offset: (offset + msa_length - 1)]
-    # print(type(raw_msa_sample))
-    # print(f'{raw_msa_sample.shape=}, {offset=}, {(offset + msa_length - 1)=}, {msa_sample.shape=}, {msa_aligns=}, {msa_length=}')
 
     # TODO: shuffle MSA
     if args.msa_shuffle:
-        # print('shuffle...')
         np.random.shuffle(msa_sample[1: ])
 
     # Build tokens and toketypes.
@@ -317,10 +265,8 @@ def build_training_sample(sample,
     else:
         for s in msa_sample:
             tokens += s.tolist()
-    # offset -= 1
 
     target_seq_length = msa_aligns * msa_length
-    # print(f'{target_seq_length=}, {msa_aligns=}, {msa_length=}, {len(tokens)=}')
     tokentypes = [0] * target_seq_length
 
     # Masking.
