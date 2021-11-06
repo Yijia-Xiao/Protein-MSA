@@ -30,7 +30,7 @@ parser.add_argument(
     "--job-num", type=int, default=16, help="the number of jobs in proba prediction"
 )
 parser.add_argument(
-    "--model-scale", type=str, choices=['1b', '100m', '140m', '60m'], help="model scale"
+    "--model-scale", type=str, choices=['1b', 'esm', '100m', '140m', '60m'], help="model scale"
 )
 
 args = parser.parse_args()
@@ -40,7 +40,8 @@ sklearn_solver = args.solver
 ckpt_iter = args.iter
 job_num = args.job_num
 model_scale = args.model_scale
-if model_scale == '1b':
+# if model_scale == '1b':
+if model_scale == '1b' or model_scale == 'esm':
     max_len = 768
 elif model_scale == '100m' or model_scale == '140m' or model_scale == '60m':
     max_len = 1024
@@ -189,6 +190,10 @@ class MegatronFake(object):
             self.gap = 15
             self.train_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
             self.test_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
+        elif model_scale == 'esm':
+            self.gap = 13
+            self.train_data = torch.load(f'./data/attention/esm-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/esm-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
         elif model_scale == '100m':
             self.gap = 13
             self.train_data = torch.load(f'./data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-self.gap]

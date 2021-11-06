@@ -119,6 +119,8 @@ def get_batch(data_iterator):
                                 device=tokens.device) + offset
     position_ids[0] = 0
     # print(f'{position_ids=}')
+    if get_args().fake_input:
+        position_ids += 2
     position_ids = position_ids.unsqueeze(0).expand_as(tokens)
     # position_ids = position_ids
 

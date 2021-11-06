@@ -310,11 +310,13 @@ def build_training_sample(sample,
 
     # Build tokens and toketypes.
     tokens = []
-    for s in msa_sample:
-        # if not is_fake:
-        #     tokens.append(cls_id)
-        tokens.append(cls_id)
-        tokens += s.tolist()
+    if not is_fake:
+        for s in msa_sample:
+            tokens.append(cls_id)
+            tokens += s.tolist()
+    else:
+        for s in msa_sample:
+            tokens += s.tolist()
     # offset -= 1
 
     target_seq_length = msa_aligns * msa_length

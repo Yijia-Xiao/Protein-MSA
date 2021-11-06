@@ -637,4 +637,6 @@ def _add_msa_args(parser):
                        help='Add layernorm after word-wmbedding.')
     group.add_argument('--eval-max-length', type=int, default=1024,
                        help='Max inference length')
+    group.add_argument('--dynamic-mask', type=int, default=0,
+                       help='Mask prob')
     return parser

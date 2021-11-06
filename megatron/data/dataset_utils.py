@@ -215,7 +215,17 @@ def create_masked_lm_predictions(tokens,
     if masked_lm_prob == 0:
         return (output_tokens, masked_lm_positions,
                 masked_lm_labels, token_boundary)
-
+    args = get_args()
+    if args.dynamic_mask != 0:
+        # print(args.dynamic_mask, '1')
+        try:
+            with open(f'{args.save}/latest_checkpointed_iteration.txt', 'r') as f:
+                iter_num = int(f.readline())
+        except:
+            iter_num = 0
+        masked_lm_prob *= min((1.2 - (iter_num / args.train_iters)), 1)
+    # else:
+    #     print(args.dynamic_mask, '0')
     num_to_predict = min(max_predictions_per_seq,
                          max(1, int(round(len(tokens) * masked_lm_prob))))
 

@@ -63,7 +63,7 @@ class IterCounter(object):
     @classmethod
     def set_iter(cls, num_iter):
         """Initialize iters."""
-        print_rank_0('set... {}'.format(num_iter))
+        # print_rank_0('set... {}'.format(num_iter))
         cls.NUM_ITER = num_iter
 
     @classmethod
