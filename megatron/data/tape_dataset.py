@@ -247,14 +247,14 @@ def build_training_sample(sample,
 
     raw_msa_sample = sample.reshape(raw_aligns, raw_length)
 
+    # TODO: shuffle MSA
+    if args.msa_shuffle:
+        np.random.shuffle(raw_msa_sample[1: ])
+
     msa_length = min(raw_length + 1, max_length)
     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
     msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
     offset = 0
-
-    # TODO: shuffle MSA
-    if args.msa_shuffle:
-        np.random.shuffle(msa_sample[1: ])
 
     # Build tokens and toketypes.
     tokens = []
