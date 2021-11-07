@@ -639,4 +639,6 @@ def _add_msa_args(parser):
                        help='Max inference length')
     group.add_argument('--dynamic-mask', type=int, default=0,
                        help='Mask prob')
+    group.add_argument('--frags-train', type=int, default=0,
+                       help='Fragments length to the max msa length')
     return parser

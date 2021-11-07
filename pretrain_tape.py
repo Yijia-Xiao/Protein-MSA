@@ -71,6 +71,7 @@ def tokens_to_seq(alig):
 def get_batch(data_iterator):
     """Build the batch."""
 
+    args = get_args()
     tokenizer = get_tokenizer()
     # Items and their type.
     keys = ['text', 'labels', 'loss_mask', 'offset', 'msa_aligns', 'msa_length', 'raw_msa_sample'] # , 'padding_mask']
@@ -119,7 +120,7 @@ def get_batch(data_iterator):
                                 device=tokens.device) + offset
     position_ids[0] = 0
     # print(f'{position_ids=}')
-    if get_args().fake_input:
+    if args.fake_input:
         position_ids += 2
     position_ids = position_ids.unsqueeze(0).expand_as(tokens)
     # position_ids = position_ids
@@ -133,7 +134,7 @@ def get_batch(data_iterator):
 
     # return tokens, loss_mask, lm_labels, padding_mask, attention_mask, position_ids # , seq
     # print(f'{tokens=}, {loss_mask=}, {lm_labels=}, {position_ids=}')
-    seq = tokens_to_seq(raw_msa_sample[0]) if get_args().attention_save else []
+    seq = tokens_to_seq(raw_msa_sample[0]) if args.attention_save else []
     return tokens, loss_mask, lm_labels, position_ids, seq
 
 

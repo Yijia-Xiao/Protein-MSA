@@ -223,7 +223,7 @@ def build_training_sample(sample,
     # We assume that we have at least one sentence in the sample
     assert len(sample) == 1, 'only support one MSA per batch'
 
-    truncated = False
+    # truncated = False
     sample = sample[0]
     args = get_args()
     max_token_num = args.max_tokens
@@ -242,8 +242,8 @@ def build_training_sample(sample,
         'MSA_TOTAL_LENGTH = MSA_ALIGNS * MSA_LENGTH'
     raw_aligns = len(sample) // raw_length
 
-    truncated = True if (len(sample) > max_token_num) \
-        else False
+    # truncated = True if (len(sample) > max_token_num) \
+    #     else False
 
     raw_msa_sample = sample.reshape(raw_aligns, raw_length)
 
@@ -251,6 +251,62 @@ def build_training_sample(sample,
     if args.msa_shuffle:
         np.random.shuffle(raw_msa_sample[1: ])
 
+    frags_train = args.frags_train
+    if frags_train != 0:
+        try:
+            with open(f'{args.save}/latest_checkpointed_iteration.txt', 'r') as f:
+                iter_num = int(f.readline())
+        except:
+            iter_num = 0
+
+        ratio = max(0.4, (iter_num / args.train_iters))
+        frags_max_length = int(ratio * max_length)
+        if raw_length + 1 < frags_max_length:
+            frags_msa_length = raw_length + 1
+            frags_offset = 0
+        elif raw_length + 1 < max_length:
+            frags_msa_length = frags_max_length
+            frags_offset = random.randint(0, raw_length + 1 - frags_max_length + 1)
+        else:
+            frags_msa_length = frags_max_length
+            frags_offset = random.randint(0, max_length - frags_max_length + 1)
+
+        frags_max_aligns = max_aligns
+        frags_msa_aligns = min(raw_aligns, frags_max_aligns, max_token_num // frags_msa_length)
+
+        frags_msa_sample = raw_msa_sample[: frags_msa_aligns, frags_offset: frags_offset + frags_msa_length - 1]
+        frags_tokens = []
+        for s in frags_msa_sample:
+            frags_tokens.append(cls_id)
+            frags_tokens += s.tolist()
+
+        frags_target_seq_length = frags_msa_aligns * frags_msa_length
+        frags_tokentypes = [0] * frags_target_seq_length
+
+        # Masking.
+        frags_max_predictions_per_seq = masked_lm_prob * frags_target_seq_length
+        (frags_tokens, frags_masked_positions, frags_masked_labels, _) = create_masked_lm_predictions(
+            frags_tokens, vocab_id_list, vocab_id_to_token_dict, masked_lm_prob,
+            cls_id, sep_id, mask_id, frags_max_predictions_per_seq, np_rng, max_ngrams=1, do_whole_word_mask=False)
+
+        # Padding.
+        frags_tokens_np, tokentypes_np, frags_labels_np, padding_mask_np, frags_loss_mask_np \
+            = pad_and_convert_to_numpy(frags_tokens, frags_tokentypes, frags_masked_positions,
+                                    frags_masked_labels, pad_id, frags_target_seq_length)
+
+        frags_msa_shape = (frags_msa_aligns, frags_msa_length)
+        frags_train_sample = {
+            'text': frags_tokens_np.reshape(frags_msa_shape),
+            'labels': frags_labels_np.reshape(frags_msa_shape),
+            'loss_mask': frags_loss_mask_np.reshape(frags_msa_shape),
+            'offset': frags_offset,
+            'msa_aligns': frags_msa_aligns,
+            'msa_length': frags_msa_length,
+            'raw_msa_sample': raw_msa_sample.astype(frags_tokens_np.dtype)
+            }
+        return frags_train_sample
+
+    # Full process start
     msa_length = min(raw_length + 1, max_length)
     msa_aligns = min(raw_aligns, max_aligns, max_token_num // msa_length)
     msa_sample = raw_msa_sample[: msa_aligns, : msa_length - 1]
@@ -281,6 +337,8 @@ def build_training_sample(sample,
                                    masked_labels, pad_id, target_seq_length)
 
     msa_shape = (msa_aligns, msa_length)
+    # Full process end
+
     train_sample = {
         'text': tokens_np.reshape(msa_shape),
         # 'types': tokentypes_np,
@@ -288,7 +346,7 @@ def build_training_sample(sample,
         # 'is_random': int(is_next_random),
         'loss_mask': loss_mask_np.reshape(msa_shape),
         # 'padding_mask': padding_mask_np.reshape(msa_shape),
-        'truncated': int(truncated),
+        # 'truncated': int(truncated),
         'offset': offset,
         'msa_aligns': msa_aligns,
         'msa_length': msa_length,
