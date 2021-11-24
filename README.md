@@ -1,26 +1,5 @@
 # Pretrain Protein Language Model with Megatron-LM
 
-
-<!-- TOC -->
-
-- [Pretrain Protein Language Model with Megatron-LM](#pretrain-protein-language-model-with-megatron-lm)
-- [Setup](#setup)
-  - [Docker Environment](#docker-environment)
-  - [Downloading Pretrained Models](#downloading-pretrained-models)
-    - [ProteinLM (200M)](#proteinlm-200m)
-    - [ProteinLM (3B)](#proteinlm-3b)
-- [Usage](#usage)
-  - [Data Preprocessing](#data-preprocessing)
-    - [Datasets](#datasets)
-    - [Preprocessing](#preprocessing)
-  - [Pretraining](#pretraining)
-    - [Protein Model Training](#protein-model-training)
-    - [Distributed Protein Model Training](#distributed-protein-model-training)
-- [Citation](#citation)
-- [Reference](#reference)
-
-<!-- /TOC -->
-
 # Setup
 
 ## Docker Environment
@@ -33,17 +12,11 @@ To use this repository, please install the latest supported versions of PyTorch 
 ## Downloading Pretrained Models
 We have provided pretrained protein model. 
 
-### ProteinLM (200M) 
-You can download model checkpoint via [GoogleDrive](https://drive.google.com/file/d/1BkJn_7y7LNWyxntaAPa333jDGIVoTbrs/view?usp=sharing), or [TsinghuaCloud](https://cloud.tsinghua.edu.cn/f/f62bef666bc742ebb7c2/?dl=1).
-
-### ProteinLM (3B) 
-For the pretrained model with 3 billion parameters,
-you can download model checkpoint from [here](https://resource.wudaoai.cn/).
- 
+### Protein-MSA (1B) 
+For the pretrained model with 1 billion parameters (950 million), you can download model checkpoint from [here](https://resource.wudaoai.cn/).
 
 
-The models require vocabulary files to run, we use IUPAC vocab, provided in text format [iupac_vocab.txt](./protein_tools/iupac_vocab.txt). There are 20 capital letters representing 20 kinds of amino acids, and 5 special tokens, which are commonly used in natural language processing: `[PAD], [MASK], [CLS], [SEP], [UNK]`).
-
+The models require vocabulary files to run, we use 20 standard amino acids tokens, and 2 special tokens: `[MASK], [-]`. The vocabulary is provided in text format [msa_vocab.txt](./msa_tools/msa_vocab.txt)
 
 # Usage
 
@@ -52,7 +25,7 @@ There are two stages as follows:
 2. Pretraining
 
 
-We've provided scripts for pretraining TAPE language model: [pretrain_tape.sh](./examples/pretrain_tape.sh), and [pretrain_tape_distributed.sh](./examples/pretrain_tape_distributed.sh) for multi-node training.
+We've provided scripts for pretraining MSA transformer model: [pretrain_tape.sh](./examples/pretrain_tape.sh), and [pretrain_tape_distributed.sh](./examples/pretrain_tape_distributed.sh) for multi-node training.
 
 
 ## Data Preprocessing
@@ -162,22 +135,19 @@ Our work is based on the following papers. And part of the code is based on [Meg
 }
 ```
 
-
-[__The Pfam protein families database in 2019__](https://academic.oup.com/nar/article/47/D1/D427/5144153))
+[__MSA Transformer__](https://www.biorxiv.org/content/10.1101/2021.02.12.430858v1))
 ```
-@article{pfam,
-       author = {El-Gebali, Sara and Mistry, Jaina and Bateman, Alex and Eddy, Sean R and Luciani, Aur{\'{e}}lien and Potter, Simon C and Qureshi, Matloob and Richardson, Lorna J and Salazar, Gustavo A and Smart, Alfredo and Sonnhammer, Erik L L and Hirsh, Layla and Paladin, Lisanna and Piovesan, Damiano and Tosatto, Silvio C E and Finn, Robert D},
-       doi = {10.1093/nar/gky995},
-       file = {::},
-       issn = {0305-1048},
-       journal = {Nucleic Acids Research},
-       keywords = {community,protein domains,tandem repeat sequences},
-       number = {D1},
-       pages = {D427--D432},
-       publisher = {Narnia},
-       title = {{The Pfam protein families database in 2019}},
-       url = {https://academic.oup.com/nar/article/47/D1/D427/5144153},
-       volume = {47},
-       year = {2019}
+@article {Rao2021.02.12.430858,
+	author = {Rao, Roshan and Liu, Jason and Verkuil, Robert and Meier, Joshua and Canny, John F. and Abbeel, Pieter and Sercu, Tom and Rives, Alexander},
+	title = {MSA Transformer},
+	elocation-id = {2021.02.12.430858},
+	year = {2021},
+	doi = {10.1101/2021.02.12.430858},
+	publisher = {Cold Spring Harbor Laboratory},
+	abstract = {Unsupervised protein language models trained across millions of diverse sequences learn structure and function of proteins. Protein language models studied to date have been trained to perform inference from individual sequences. The longstanding approach in computational biology has been to make inferences from a family of evolutionarily related sequences by fitting a model to each family independently. In this work we combine the two paradigms. We introduce a protein language model which takes as input a set of sequences in the form of a multiple sequence alignment. The model interleaves row and column attention across the input sequences and is trained with a variant of the masked language modeling objective across many protein families. The performance of the model surpasses current state-of-the-art unsupervised structure learning methods by a wide margin, with far greater parameter efficiency than prior state-of-the-art protein language models.Competing Interest StatementThe authors have declared no competing interest.},
+	URL = {https://www.biorxiv.org/content/early/2021/02/13/2021.02.12.430858},
+	eprint = {https://www.biorxiv.org/content/early/2021/02/13/2021.02.12.430858.full.pdf},
+	journal = {bioRxiv}
 }
+
 ```

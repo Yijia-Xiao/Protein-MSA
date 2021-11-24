@@ -195,6 +195,10 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load'):
     assert iteration > 0 or release, 'error parsing metadata file {}'.format(
         tracker_filename)
 
+    if args.attention_save:
+        if args.attention_load_iter != 0:
+            iteration = args.attention_load_iter
+
     # Checkpoint.
     checkpoint_name = get_checkpoint_name(load_dir, iteration, release)
     if torch.distributed.get_rank() == 0:

@@ -30,7 +30,8 @@ parser.add_argument(
     "--job-num", type=int, default=16, help="the number of jobs in proba prediction"
 )
 parser.add_argument(
-    "--model-scale", type=str, choices=['1b', 'esm', '100m', '140m', '60m'], help="model scale"
+    "--model-scale", type=str, help="model scale"
+    # "--model-scale", type=str, choices=['1b', 'esm', '100m', '140m', '60m', 'trained-esm'], help="model scale"
 )
 
 args = parser.parse_args()
@@ -41,7 +42,7 @@ ckpt_iter = args.iter
 job_num = args.job_num
 model_scale = args.model_scale
 # if model_scale == '1b':
-if model_scale == '1b' or model_scale == 'esm':
+if model_scale == '1b' or model_scale == 'esm' or model_scale == 'trained-esm' or model_scale == '768h-8l-6hd':
     max_len = 768
 elif model_scale == '100m' or model_scale == '140m' or model_scale == '60m':
     max_len = 1024
@@ -188,12 +189,14 @@ class MegatronFake(object):
         # megatron trained model
         if model_scale == '1b':
             self.gap = 15
-            self.train_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
-            self.test_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
-        elif model_scale == 'esm':
+            self.train_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
+            # self.train_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            # self.test_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
+        elif model_scale == 'esm' or model_scale == 'trained-esm':
             self.gap = 13
-            self.train_data = torch.load(f'./data/attention/esm-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
-            self.test_data = torch.load(f'./data/attention/esm-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
+            self.train_data = torch.load(f'./data/attention/{model_scale}-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/{model_scale}-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
         elif model_scale == '100m':
             self.gap = 13
             self.train_data = torch.load(f'./data/attention/megatron_{ckpt_iter}_train_depth{msa_depth}.pt')[:-self.gap]
@@ -206,6 +209,12 @@ class MegatronFake(object):
             self.gap = 7
             self.train_data = torch.load(f'./data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
             self.test_data = torch.load(f'./data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
+        elif model_scale == '768h-8l-6hd':
+            num_layer = int(model_scale.split('-')[1][:-1])
+            num_heads = int(model_scale.split('-')[2][:-2])
+            self.gap = num_layer + 1
+            self.train_data = torch.load(f'./data/attention/{model_scale}-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/{model_scale}-depth{msa_depth}-{ckpt_iter}-test.pt')
 
         self.train_sample = 0
         self.test_sample = 0
@@ -309,6 +318,7 @@ frac_list = [1, 2, 5]
 
 
 def eval_unsupervised():
+    ret_contect = []
     testset = np.load(f'{DATA_ROOT}/megatron/test_dataset.npy', allow_pickle=True)
 
     # data = []
@@ -382,6 +392,7 @@ def eval_unsupervised():
         attentions = attentions.permute(1, 2, 0)
 
         proba = net['net'].predict_proba(attentions.reshape(-1, num_layer * num_head).cpu())
+        net_pred = net['net'].predict(attentions.reshape(-1, num_layer * num_head).cpu())
         # proba = net['net'].predict_proba(attentions.reshape(-1, 144).cpu())
         # proba = parallel(delayed(net['net'].predict_proba)(attentions.reshape(-1, 144)) for job_id in range(job_num))
         # cor, tot = calculate_contact_precision(sample['name'], torch.from_numpy(proba).to('cuda'), label.to('cuda'), local_range=range_, frac=frac)
@@ -402,9 +413,16 @@ def eval_unsupervised():
                 eval_dic[range_name][fra]['cor'] += cor.item()
                 eval_dic[range_name][fra]['tot'] += tot
         logging.info(eval_dic)
-        return eval_dic
+        # return eval_dic
+        return (eval_dic, (net_pred, label.clone()))
     # for sample in testset:
-    eval_dict_list = parallel(delayed(predict_one_sample)(sample) for sample in test_call_res)
+    # eval_dict_list = parallel(delayed(predict_one_sample)(sample) for sample in test_call_res)
+    eval_dict_pred_tuple_list = parallel(delayed(predict_one_sample)(sample) for sample in test_call_res)
+    eval_dict_list = [t[0] for t in eval_dict_pred_tuple_list]
+    pred_list = [t[1] for t in eval_dict_pred_tuple_list]
+    import json
+    json.dump(eval_dict_list, open('eval_dict_list.json', 'w'))
+
     # logging.info(eval_dict_list)
     merge_dict = dict()
     for r in range_dic:
@@ -420,9 +438,9 @@ def eval_unsupervised():
                 for c in ['cor', 'tot']:
                     merge_dict[r][f][c] += eval_di[r][f][c]
     # logging.info(merge_dict)
-    return merge_dict
+    return merge_dict, pred_list
 
-eval_dic = eval_unsupervised()
+eval_dic, ret_contect = eval_unsupervised()
 
 logging.info(f'{model.train_sample=}')
 logging.info(f'{model.test_sample=}')
@@ -434,3 +452,5 @@ for r in range_dic:
 
 
 logging.info(eval_dic)
+
+torch.save(ret_contect, f'./data/attention/ret/cameo-{model_scale}-{msa_depth}-{ckpt_iter}.pt')
