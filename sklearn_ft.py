@@ -189,8 +189,8 @@ class MegatronFake(object):
         # megatron trained model
         if model_scale == '1b':
             self.gap = 15
-            self.train_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
-            self.test_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
+            self.train_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
             # self.train_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
             # self.test_data = torch.load(f'./data/attention/dmask-1b-fp32-depth{msa_depth}-{ckpt_iter}-test.pt') # [:-15]
         elif model_scale == 'esm' or model_scale == 'trained-esm':
@@ -452,5 +452,6 @@ for r in range_dic:
 
 
 logging.info(eval_dic)
+logging.info(eval_dic['long'])
 
 torch.save(ret_contect, f'./data/attention/ret/cameo-{model_scale}-{msa_depth}-{ckpt_iter}.pt')
