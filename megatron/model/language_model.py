@@ -150,9 +150,9 @@ class Embedding(MegatronModule):
         # MSA positional embedding
 
         if self.add_msa_positional_embedding:
-            # self.msa_max_aligns = get_args().max_aligns
-            self.msa_max_aligns = 1024
-            self.msa_positional_embedding = torch.nn.Embedding(self.msa_max_aligns,
+            self.max_msa_position_embeddings = get_args().max_msa_position_embeddings
+            # self.max_msa_position_embeddings = 1536
+            self.msa_positional_embedding = torch.nn.Embedding(self.max_msa_position_embeddings,
                                                             self.hidden_size)
             self._msa_positional_embedding_key = 'msa_positional_embeddings'
             # Initialize the msa positoinal embeddings.
