@@ -237,10 +237,15 @@ def build_training_sample(sample,
     else:
         raw_length = sample.tolist().index(msa_sep_id)
         sample = np.delete(sample, [raw_length], axis=0)
-
+    """
     assert len(sample) % raw_length == 0, \
-        'MSA_TOTAL_LENGTH = MSA_ALIGNS * MSA_LENGTH'
+        print('sample', sample, raw_length, len(sample), 'MSA_TOTAL_LENGTH = MSA_ALIGNS * MSA_LENGTH')
+    """
+    if len(sample) % raw_length != 0:
+        sample = sample[:raw_length]
     raw_aligns = len(sample) // raw_length
+    
+    assert len(sample) % raw_length == 0, "Not a protein matrix"
 
     # truncated = True if (len(sample) > max_token_num) \
     #     else False
