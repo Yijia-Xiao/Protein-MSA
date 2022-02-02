@@ -895,9 +895,10 @@ class ParallelColAttention(MegatronModule):
             start = 0
         else:
             start = self.w_size // 2
-        row_indices = list(range(1, min(self.h_size, num_aligns)))
-        random.shuffle(row_indices)
-        row_indices.insert(0, 0)
+        # row_indices = list(range(1, min(self.h_size, num_aligns)))
+        # random.shuffle(row_indices)
+        # row_indices.insert(0, 0)
+        row_indices = list(range(min(self.h_size, num_aligns)))
         for col_idx in range(start, num_length, self.w_size):
             block = hidden_states[row_indices, col_idx: col_idx + self.w_size, :]
             block_shape = block.shape
