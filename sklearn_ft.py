@@ -46,6 +46,9 @@ if model_scale == '1b' or model_scale == 'esm' or model_scale == 'trained-esm' o
     max_len = 768
 elif model_scale == '100m' or model_scale == '140m' or model_scale == '60m':
     max_len = 1024
+elif model_scale == 'corp':
+    max_len = 768
+# /dataset/ee84df8b/workspace/ckpt/release/2304h-8l-12hd-1mbs-256gbs-1mp-30720tokens-1024aligns-1536length-16000ws-200000iter-release/
 
 alphabet_str = 'ARNDCQEGHILKMFPSTWYV-'
 id_to_char = dict()
@@ -209,6 +212,10 @@ class MegatronFake(object):
             self.gap = 7
             self.train_data = torch.load(f'./data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
             self.test_data = torch.load(f'./data/attention/60m-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
+        elif model_scale == 'corp':
+            self.gap = 9
+            self.train_data = torch.load(f'./data/attention/corp-fp32-depth{msa_depth}-{ckpt_iter}-train.pt')[:-self.gap]
+            self.test_data = torch.load(f'./data/attention/corp-fp32-depth{msa_depth}-{ckpt_iter}-test.pt')
         elif model_scale == '768h-8l-6hd':
             num_layer = int(model_scale.split('-')[1][:-1])
             num_heads = int(model_scale.split('-')[2][:-2])
