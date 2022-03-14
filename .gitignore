@@ -9,3 +9,5 @@ dist/
 
 # helpers.so for data processing
 helpers.*.so
+local/
+data/

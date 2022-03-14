@@ -223,7 +223,19 @@ def create_masked_lm_predictions(tokens,
                 iter_num = int(f.readline())
         except:
             iter_num = 0
-        masked_lm_prob *= min((1.2 - (iter_num / args.train_iters)), 1)
+        # masked_lm_prob *= min((1.2 - (iter_num / args.train_iters)), 1)
+        # masked_lm_prob *= max(1, 1.5 * (iter_num / args.train_iters))
+        # masked_lm_prob *= min(2, max(1, 20 * (iter_num / args.train_iters)))
+        ratio = iter_num / args.train_iters
+        # if ratio > 0.5 and ratio < 0.625
+        if ratio > 0.5 and ratio < 0.6:
+            masked_lm_prob *= ((ratio - 0.5) * 2 + 1)
+        elif ratio >= 0.6:
+            # masked_lm_prob *= 1.2
+            masked_lm_prob = 0.1575
+        # from megatron import IterCounter
+        # print(IterCounter.get_iter())
+        # print(f'{masked_lm_prob=}')
     # else:
     #     print(args.dynamic_mask, '0')
     num_to_predict = min(max_predictions_per_seq,

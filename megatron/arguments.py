@@ -635,8 +635,12 @@ def _add_msa_args(parser):
                        help='MSA positional embedding.')
     group.add_argument('--add-post-embedding-layernorm', action='store_true',
                        help='Add layernorm after word-wmbedding.')
+    group.add_argument('--max-msa-position-embeddings', type=int, default=1024,
+                       help='Max msa position embeddings.')
     group.add_argument('--eval-max-length', type=int, default=1024,
                        help='Max inference length')
+    group.add_argument('--attention-load-iter', type=int, default=0,
+                       help='The iteration of checkpoint to be loaded for contact map')
     group.add_argument('--dynamic-mask', type=int, default=0,
                        help='Mask prob')
     group.add_argument('--frags-train', type=int, default=0,
