@@ -645,4 +645,8 @@ def _add_msa_args(parser):
                        help='Mask prob')
     group.add_argument('--frags-train', type=int, default=0,
                        help='Fragments length to the max msa length')
+    group.add_argument('--window-w', type=int, default=8,
+                       help='Window width')
+    group.add_argument('--window-h', type=int, default=8,
+                       help='Window height')
     return parser

@@ -660,10 +660,12 @@ class ParallelColAttention(MegatronModule):
     def __init__(self, attention_mask_func, init_method,
                  output_layer_init_method, layer_number):
         super(ParallelColAttention, self).__init__()
-        self.w_size = 8
-        self.h_size = 16
+        # self.w_size = 8
+        # self.h_size = 16
 
         args = get_args()
+        self.w_size = args.window_w
+        self.h_size = args.window_h
         self.fp16 = args.fp16
 
         self.attention_mask_func = attention_mask_func
@@ -905,7 +907,7 @@ class ParallelColAttention(MegatronModule):
             out = self.attention_forward(block.reshape(1, -1, hidden_size))
             # print(out.shape)
             hidden_states[row_indices, col_idx: col_idx + self.w_size, :] = out.reshape(block_shape)
-            # print(hidden_states.sum())
+            print(hidden_states.sum())
         return hidden_states, torch.zeros_like(hidden_states)
 
 
