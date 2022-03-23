@@ -11,3 +11,9 @@ dist/
 helpers.*.so
 local/
 data/
+
+finetune/output
+logs/
+log/
+tb/
+nb/
