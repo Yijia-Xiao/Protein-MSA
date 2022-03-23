@@ -84,30 +84,6 @@ These scripts use the PyTorch distributed launcher for distributed training. As 
 **Note**
 If you encounter `timeout` problem when running `pretrain_tape_distributed.sh`, you can set `'timeout'` parameter of `torch.distributed.init_process_group()` to a longer interval.
 
-
-# Citation
-Please cite our paper if you find our work useful for your research. Our paper is can be accessed [here](https://arxiv.org/abs/2108.07435).
-```
-@article{DBLP:journals/corr/abs-2108-07435,
-  author    = {Yijia Xiao and
-               Jiezhong Qiu and
-               Ziang Li and
-               Chang{-}Yu Hsieh and
-               Jie Tang},
-  title     = {Modeling Protein Using Large-scale Pretrain Language Model},
-  journal   = {CoRR},
-  volume    = {abs/2108.07435},
-  year      = {2021},
-  url       = {https://arxiv.org/abs/2108.07435},
-  eprinttype = {arXiv},
-  eprint    = {2108.07435},
-  timestamp = {Fri, 20 Aug 2021 13:55:54 +0200},
-  biburl    = {https://dblp.org/rec/journals/corr/abs-2108-07435.bib},
-  bibsource = {dblp computer science bibliography, https://dblp.org}
-}
-```
-
-
 # Reference
 
 Our work is based on the following papers. And part of the code is based on [Megatron-LM](https://github.com/NVIDIA/Megatron-LM).
