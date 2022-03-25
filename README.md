@@ -129,3 +129,52 @@ Our work is based on the following papers. And part of the code is based on [Meg
 }
 
 ```
+
+
+# test
+CUDA=0,1,2,3,4,5,6 bash run.sh
+
+# plot
+python l5-2-1.py
+
+# experiment
+MASTER_PORT=7000 CUDA_VISIBLE_DEVICES=0,1 W=8 H=8 bash train/multi-dev.sh
+MASTER_PORT=7001 CUDA_VISIBLE_DEVICES=2,3 W=2 H=8 bash train/multi-dev.sh
+MASTER_PORT=7002 CUDA_VISIBLE_DEVICES=4,5 W=1 H=8 bash train/multi-dev.sh
+MASTER_PORT=7003 CUDA_VISIBLE_DEVICES=6,7 W=2 H=16 bash train/multi-dev.sh
+
+# ProtTrans /dataset/ee84df8b/ProtTrans
+CUDA_VISIBLE_DEVICES=4 python main.py --model prot_t5_xxl_uniref50 --split valid
+CUDA_VISIBLE_DEVICES=3 python main.py --model prot_t5_xxl_uniref50 --split train
+CUDA_VISIBLE_DEVICES=2 python main.py --model prot_t5_xl_uniref50 --split valid
+CUDA_VISIBLE_DEVICES=1 python main.py --model prot_t5_xl_uniref50 --split train
+
+# ESM
+~/yijia/esm# CUDA_VISIBLE_DEVICES=7 python -i regression.py --model-type esm1b
+~/yijia/esm# bash run-esm1b.sh
+
+# DeepLoc
+/dataset/ee84df8b/yijia/esm/deeploc# (python main.py) |& tee -a log.txt
+
+
+--- /dataset/ee84df8b --------------------------------------------------------------------------------------------------------------------------------------   30.3 TiB [##########] /data                                                                                                                                 20.7 TiB [######    ] /projects
+   13.5 TiB [####      ] /20210816
+   12.9 TiB [####      ] /workspace
+   10.6 TiB [###       ] /A2M
+    3.4 TiB [#         ] /Protein-MSA
+    1.6 TiB [          ] /TTIC-DATA
+    1.1 TiB [          ] /MSA
+  717.0 GiB [          ] /bochen
+  684.3 GiB [          ] /release
+  268.2 GiB [          ] /yijia
+  203.1 GiB [          ] /home
+  147.0 GiB [          ] /ProtTrans
+  146.2 GiB [          ] /model-hub-db
+   86.6 GiB [          ] /RaptorX-3DModeling
+   26.0 GiB [          ] /contact-data
+    8.9 GiB [          ] /DeepSpeedExamples
+   28.3 MiB [          ] /.trash
+    4.0 MiB [          ] /.Trash-0
+  130.0   B [          ] /trash
+!   0.0   B [          ]  protein
+!   0.0   B [          ]  analyze
