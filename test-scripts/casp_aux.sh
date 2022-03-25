@@ -1,0 +1,2 @@
+set -x
+CUDA_VISIBLE_DEVICES=$CUDA MASTER_PORT=$((8010+CUDA))  iter=$((131000+500*CUDA)) bash test_cb_1b.sh
