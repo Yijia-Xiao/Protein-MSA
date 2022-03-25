@@ -10,15 +10,17 @@ To use this repository, please install the latest supported versions of PyTorch 
 
 
 ## Downloading Pretrained Models
-We have provided pretrained protein model. 
+We provide two pretrained protein models.
+
 
 ### Protein-MSA (1B) 
 For the pretrained model with 1 billion parameters (950 million), you can download model checkpoint from [here](https://resource.wudaoai.cn/).
 
-
-The models require vocabulary files to run, we use 20 standard amino acids tokens, and 2 special tokens: `[MASK], [-]`. The vocabulary is provided in text format [msa_vocab.txt](./msa_tools/msa_vocab.txt)
+Besides the 20 standard amino acids tokens, there are 3 special tokens: `[MASK]` (masked language model), `[-]` (gap token). The vocabulary is provided in text format [msa_vocab.txt](./msa_tools/msa_vocab.txt).
 
 # Usage
+
+`[|]` (spilt token)
 
 There are two stages as follows:
 1. Data preprocessing
