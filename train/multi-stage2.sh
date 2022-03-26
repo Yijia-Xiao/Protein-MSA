@@ -127,7 +127,7 @@ SE_ITER=500
 
 
 # run_cmd="${NCCL_ENV} python -m torch.distributed.launch $DISTRIBUTED_ARGS \
-#        $MYPATH/pretrain_tape.py \
+#        $MYPATH/pretrain_msa.py \
 #        --num-layers $LAYERNUM \
 #        --hidden-size $HIDDENSIZE \
 #        --num-attention-heads $HEAD \

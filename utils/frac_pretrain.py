@@ -162,7 +162,7 @@ def forward_step(data_iterator, model, input_tensor):
     tokens, loss_mask, lm_labels, position_ids, seq \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
-    # print_rank_0('in-pretrain_tape.py get... {}'.format(IterCounter.get_iter()))
+    # print_rank_0('in-pretrain_msa.py get... {}'.format(IterCounter.get_iter()))
 
     # extended_attention_mask = bert_extended_attention_mask(padding_mask) + attention_mask
 
