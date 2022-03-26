@@ -7,7 +7,7 @@ CHECKPOINT_PATH=<Specify path>
 
 mkdir -p $CHECKPOINT_PATH
 
-python pretrain_tape.py \
+python pretrain_msa.py \
        --num-layers 12 \
        --attention-dropout 0.1 \
        --hidden-dropout 0.1 \

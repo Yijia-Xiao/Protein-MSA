@@ -86,7 +86,7 @@ NCCL_NET_GDR_LEVEL=0
 SE_ITER=500
 
 (python -m torch.distributed.launch $DISTRIBUTED_ARGS \
-       $MYPATH/pretrain_tape.py \
+       $MYPATH/pretrain_msa.py \
        --num-layers $LAYERNUM \
        --hidden-size $HIDDENSIZE \
        --num-attention-heads $HEAD \

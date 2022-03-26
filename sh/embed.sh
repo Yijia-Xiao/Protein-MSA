@@ -46,7 +46,7 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $
 
 if [ $CKPT == esm ]; then
        cmd="""python -m torch.distributed.launch $DISTRIBUTED_ARGS \
-              ./pretrain_tape.py \
+              ./pretrain_msa.py \
               --num-layers $LAYERNUM \
               --hidden-size $HIDDENSIZE \
               --num-attention-heads $HEAD \
@@ -84,7 +84,7 @@ if [ $CKPT == esm ]; then
        """
 elif [ $CKPT == 100m ]; then
        cmd="""python -m torch.distributed.launch $DISTRIBUTED_ARGS \
-              ./pretrain_tape.py \
+              ./pretrain_msa.py \
               --num-layers $LAYERNUM \
               --hidden-size $HIDDENSIZE \
               --num-attention-heads $HEAD \

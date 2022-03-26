@@ -87,7 +87,7 @@ SE_ITER=500
 # SE_ITER=1000
 
 (python -m torch.distributed.launch $DISTRIBUTED_ARGS \
-       $MYPATH/pretrain_tape.py \
+       $MYPATH/pretrain_msa.py \
        --num-layers $LAYERNUM \
        --hidden-size $HIDDENSIZE \
        --num-attention-heads $HEAD \

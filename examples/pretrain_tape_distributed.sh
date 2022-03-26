@@ -19,7 +19,7 @@ mkdir -p $CHECKPOINT_PATH
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 
 (python -m torch.distributed.launch $DISTRIBUTED_ARGS \
-       pretrain_tape.py \
+       pretrain_msa.py \
        --num-layers 12 \
        --attention-dropout 0.1 \
        --hidden-dropout 0.1 \
