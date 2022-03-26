@@ -6,55 +6,65 @@ set -x
 # NCCL_DEBUG=info
 NCCL_ENV="NCCL_IB_DISABLE=0 NCCL_IB_GID_INDEX=3 NCCL_NET_GDR_LEVEL=0"
 
-NNODES=1
+NNODES=8
+# NNODES=2
 
 # MP=1
 # g_bs=256
 # LAYERNUM=16
 MP=1
-# g_bs=64
-# g_bs=32
-g_bs=128
-LAYERNUM=6
-HIDDENSIZE=768
-HEAD=8
+g_bs=256
+LAYERNUM=14
+HIDDENSIZE=2048
+HEAD=16
 
 # MAX_TOKENS=16384
 # MAX_TOKENS=65536
-# MAX_TOKENS=16384
-MAX_TOKENS=32768
-MAX_ALIGNS=512
+MAX_TOKENS=16384
+MAX_ALIGNS=128
 # MAX_LENGTH=1024
 MAX_LENGTH=1024
 
 BATCHSIZE=1
 DATE=release
-# DATE=debug
 
-WS=4000
+WS=1600
 ITER=200000
 
 # g_bs=64
-NAME=${HIDDENSIZE}h-${LAYERNUM}l-${HEAD}hd-${BATCHSIZE}mbs-${g_bs}gbs-${MP}mp-${MAX_TOKENS}tokens-${MAX_ALIGNS}aligns-${MAX_LENGTH}length-${WS}ws-${ITER}iter-${DATE}
+# NAME=${HIDDENSIZE}h-${LAYERNUM}l-${HEAD}hd-${BATCHSIZE}mbs-${g_bs}gbs-${MP}mp-${MAX_TOKENS}tokens-${MAX_ALIGNS}aligns-${MAX_LENGTH}length-${WS}ws-${ITER}iter-${DATE}
+NAME=${HIDDENSIZE}h-${LAYERNUM}l-${HEAD}hd-${BATCHSIZE}mbs-${g_bs}gbs-${MP}mp-12288tokens-512aligns-768length-${WS}ws-${ITER}iter-${DATE}
 
 MYPATH=$PWD
 
 GPUS_PER_NODE=8
 WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
-MASTER_ADDR=localhost
+MASTER_ADDR=node1
 MASTER_PORT=7010
-NODE_RANK=0
 
+# DATA_PATH=/workspace/XA/XA_KING_text_document
+# DATA_PATH=/workspace/XB/XB_KING_text_document
+DATA_PATH=/workspace/DATA/UniRef50-xb-a2m-2018/UniRef50-xb-a2m-2018_text_document
+DATA_PATH=/workspace/DATA/UniRef50-xc-a2m-2017/UniRef50-xc-a2m-2017_text_document
+DATA_PATH=/workspace/DATA/UniRef50-xd-a2m-2018/UniRef50-xd-a2m-2018_text_document
+# UniRef50-xc-a2m-2017
 DATA_PATH=/workspace/DATA/TOTAL/TOTAL_text_document
 DATA_PATH=/root/DATA/TOTAL_text_document
+# #OLD=1
+# if [ -z $OLD ]; then
+#   DATA_PATH=/workspace/XA/XA_KING_text_document
+#   WS=16000
+#   ITER=100000
+# else
+#   DATA_PATH=./msa_tools/fake_text_document
+#   WS=10
+#   ITER=100
+# fi
 
 DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --nnodes $NNODES --node_rank $NODE_RANK --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 
 
-
-# CHECKPOINT_PATH=/workspace/ckpt/$DATE/$NAME
-CHECKPOINT_PATH=/dataset/ee84df8b/workspace/$DATE/$NAME
-
+CHECKPOINT_PATH=/workspace/ckpt/$DATE/$NAME
 TB=$MYPATH/tb/$DATE/$NAME
 LOG=$MYPATH/logs/$DATE/$NAME
 
@@ -92,7 +102,7 @@ SE_ITER=500
        --vocab-file $MYPATH/msa_tools/msa_vocab.txt \
        --data-impl mmap \
        --distributed-backend nccl \
-       --lr 0.0005 \
+       --lr 0.0001 \
        --lr-decay-style linear \
        --clip-grad 1.0 \
        --lr-warmup-iters $WS \
@@ -111,7 +121,8 @@ SE_ITER=500
        --msa-shuffle \
        --add-msa-positional-embedding \
        --add-post-embedding-layernorm \
-       --split 990,9,1
+       --split 990,9,1 \
+       --mask-prob 0.1 \
 ) |& tee -a $LOG
        # --checkpoint-num-layers 2 \
 
