@@ -25,7 +25,7 @@ from megatron import print_rank_0
 from megatron import get_timers
 from megatron import mpu
 from megatron.data.tape_dataset import build_train_valid_test_datasets
-from megatron.model import BertModel, BertModelFirstStage, BertModelIntermediateStage, BertModelLastStage
+from megatron.model import MSAModel, BertModelFirstStage, BertModelIntermediateStage, BertModelLastStage
 from megatron.model.transformer import Collector
 from megatron.training import pretrain
 from megatron.utils import average_losses_across_data_parallel_group
@@ -54,7 +54,7 @@ def model_provider():
             model = BertModelIntermediateStage(
                 num_tokentypes=0)
     else:
-        model = BertModel(
+        model = MSAModel(
             num_tokentypes=0,
             add_binary_head=False,
             parallel_output=True)

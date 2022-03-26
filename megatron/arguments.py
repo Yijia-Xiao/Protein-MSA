@@ -582,7 +582,7 @@ def _add_realm_args(parser):
     group.add_argument('--ict-load', type=str, default=None,
                        help='Directory containing an ICTBertModel checkpoint')
     group.add_argument('--bert-load', type=str, default=None,
-                       help='Directory containing an BertModel checkpoint (needed to start ICT and REALM)')
+                       help='Directory containing an MSAModel checkpoint (needed to start ICT and REALM)')
 
     # data
     group.add_argument('--titles-data-path', type=str, default=None,

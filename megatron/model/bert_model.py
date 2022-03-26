@@ -232,18 +232,18 @@ class BertModelBase(MegatronModule):
                 state_dict[self._word_embeddings_for_head_key], strict=strict)
 
 
-class BertModel(BertModelBase):
+class MSAModel(BertModelBase):
 
     def __init__(self, num_tokentypes=2, add_binary_head=True,
                  parallel_output=True):
-        super(BertModel, self).__init__(
+        super(MSAModel, self).__init__(
             num_tokentypes=num_tokentypes,
             add_binary_head=add_binary_head,
             parallel_output=parallel_output)
 
     def forward(self, input_ids, # , attention_mask,
                 tokentype_ids=None, lm_labels=None, position_ids=None):
-        return super(BertModel, self).forward(
+        return super(MSAModel, self).forward(
             input_ids,
             # attention_mask,
             tokentype_ids=tokentype_ids,

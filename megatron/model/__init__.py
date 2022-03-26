@@ -30,7 +30,7 @@ def import_layernorm(fp32_residual_connection):
 
 
 from .distributed import *
-from .bert_model import (BertModel,
+from .bert_model import (MSAModel,
                          BertModelFirstStage,
                          BertModelIntermediateStage,
                          BertModelLastStage)
