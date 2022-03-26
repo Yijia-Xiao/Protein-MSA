@@ -48,7 +48,7 @@ from megatron.model.realm_model import ICTBertModel
 from megatron.utils import check_adlr_autoresume_termination
 from megatron.data.data_loaders import build_pretraining_data_loader
 from megatron.utils import report_memory
-from megatron.data.tape_dataset import IterCounter
+from megatron.data.msa_dataset import IterCounter
 
 
 def print_datetime(string):

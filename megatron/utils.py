@@ -150,10 +150,10 @@ def get_ltor_masks_and_position_ids(data,
     return attention_mask, loss_mask, position_ids
 
 
-def get_tape_masks_and_position_ids(data,
-                                    cls_token,
-                                    reset_position_ids,
-                                    reset_attention_mask):
+def get_msa_masks_and_position_ids(data,
+                                   cls_token,
+                                   reset_position_ids,
+                                   reset_attention_mask):
     """Build masks and position id for (bidirected) tape model, where multiple protein sequences are concatinated to a single sequences, like
     [CLS] seq1 [CLS] seq2 [CLS] seq3 ...
     We do this mainly because protein sequences has various lengths, ranging from 100 to 10000. 

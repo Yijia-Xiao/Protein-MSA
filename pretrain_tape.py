@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pretrain TAPE"""
+"""Pretrain MSA"""
 
 import torch
 import torch.nn.functional as F
@@ -24,34 +24,34 @@ from megatron import get_args, get_tokenizer
 from megatron import print_rank_0
 from megatron import get_timers
 from megatron import mpu
-from megatron.data.tape_dataset import build_train_valid_test_datasets
-from megatron.model import MSAModel, BertModelFirstStage, BertModelIntermediateStage, BertModelLastStage
+from megatron.data.msa_dataset import build_train_valid_test_datasets
+from megatron.model import MSAModel, MSAModelFirstStage, MSAModelIntermediateStage, MSAModelLastStage
 from megatron.model.transformer import Collector
 from megatron.training import pretrain
 from megatron.utils import average_losses_across_data_parallel_group
-from megatron.utils import get_tape_masks_and_position_ids
+from megatron.utils import get_msa_masks_and_position_ids
 
-from megatron.model.bert_model import bert_extended_attention_mask
+from megatron.model.msa_model import bert_extended_attention_mask
 from megatron import IterCounter
 
 def model_provider():
     """Build the model."""
 
-    print_rank_0('building TAPE model ...')
+    print_rank_0('building MSA model ...')
 
     args = get_args()
     if mpu.get_pipeline_model_parallel_world_size() > 1:
         # Determine model based on position of stage in pipeline.
         if mpu.is_pipeline_first_stage():
-            model = BertModelFirstStage(
+            model = MSAModelFirstStage(
                 num_tokentypes=0)
         elif mpu.is_pipeline_last_stage():
-            model = BertModelLastStage(
+            model = MSAModelLastStage(
                 num_tokentypes=0,
                 add_binary_head=False,
                 parallel_output=True)
         else:
-            model = BertModelIntermediateStage(
+            model = MSAModelIntermediateStage(
                 num_tokentypes=0)
     else:
         model = MSAModel(
@@ -150,7 +150,7 @@ def forward_step(data_iterator, model, input_tensor):
     tokens, loss_mask, lm_labels, position_ids, seq \
         = get_batch(data_iterator)
     timers('batch-generator').stop()
-    # print_rank_0('in-pretrain_tape.py get... {}'.format(IterCounter.get_iter()))
+    # print_rank_0('in-pretrain_msa.py get... {}'.format(IterCounter.get_iter()))
 
     # extended_attention_mask = bert_extended_attention_mask(padding_mask) + attention_mask
 
@@ -199,7 +199,7 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
     args = get_args()
 
     print_rank_0('> building train, validation, and test datasets '
-                 'for TAPE ...')
+                 'for MSA ...')
     train_ds, valid_ds, test_ds = build_train_valid_test_datasets(
         data_prefix=args.data_path,
         data_impl=args.data_impl,
@@ -209,7 +209,7 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
         masked_lm_prob=args.mask_prob,
         seed=args.seed,
         skip_warmup=(not args.mmap_warmup))
-    print_rank_0("> finished creating TAPE datasets ...")
+    print_rank_0("> finished creating MSA datasets ...")
 
     return train_ds, valid_ds, test_ds
 

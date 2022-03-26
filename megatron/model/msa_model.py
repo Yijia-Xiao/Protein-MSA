@@ -251,45 +251,45 @@ class MSAModel(BertModelBase):
             position_ids=position_ids)
 
 
-class BertModelFirstStage(BertModelBase):
+class MSAModelFirstStage(BertModelBase):
 
     def __init__(self, num_tokentypes=2):
-        super(BertModelFirstStage, self).__init__(
+        super(MSAModelFirstStage, self).__init__(
             num_tokentypes=num_tokentypes)
 
     def forward(self, input_ids, attention_mask,
                 tokentype_ids=None, position_ids=None):
-        return super(BertModelFirstStage, self).forward(
+        return super(MSAModelFirstStage, self).forward(
             input_ids,
             attention_mask,
             tokentype_ids=tokentype_ids,
             position_ids=position_ids)
 
 
-class BertModelIntermediateStage(BertModelBase):
+class MSAModelIntermediateStage(BertModelBase):
 
     def __init__(self, num_tokentypes=2):
-        super(BertModelIntermediateStage, self).__init__(
+        super(MSAModelIntermediateStage, self).__init__(
             num_tokentypes=num_tokentypes)
 
     def forward(self, hidden_state, attention_mask):
-        return super(BertModelIntermediateStage, self).forward(
+        return super(MSAModelIntermediateStage, self).forward(
             hidden_state,
             attention_mask)
 
 
-class BertModelLastStage(BertModelBase):
+class MSAModelLastStage(BertModelBase):
 
     def __init__(self, num_tokentypes=2, add_binary_head=True,
                  parallel_output=True):
-        super(BertModelLastStage, self).__init__(
+        super(MSAModelLastStage, self).__init__(
             num_tokentypes=num_tokentypes,
             add_binary_head=add_binary_head,
             parallel_output=parallel_output)
 
     def forward(self, hidden_state, attention_mask,
                 lm_labels=None):
-        return super(BertModelLastStage, self).forward(
+        return super(MSAModelLastStage, self).forward(
             hidden_state,
             attention_mask,
             lm_labels=lm_labels)
