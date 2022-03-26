@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pretrain TAPE"""
+"""Pretrain MSA"""
 
 import torch
 import torch.nn.functional as F
@@ -37,7 +37,7 @@ from megatron import IterCounter
 def model_provider():
     """Build the model."""
 
-    print_rank_0('building TAPE model ...')
+    print_rank_0('building MSA model ...')
 
     args = get_args()
     if mpu.get_pipeline_model_parallel_world_size() > 1:
@@ -211,7 +211,7 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
     args = get_args()
 
     print_rank_0('> building train, validation, and test datasets '
-                 'for TAPE ...')
+                 'for MSA ...')
     train_ds, valid_ds, test_ds = build_train_valid_test_datasets(
         data_prefix=args.data_path,
         data_impl=args.data_impl,
@@ -221,7 +221,7 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
         masked_lm_prob=args.mask_prob,
         seed=args.seed,
         skip_warmup=(not args.mmap_warmup))
-    print_rank_0("> finished creating TAPE datasets ...")
+    print_rank_0("> finished creating MSA datasets ...")
 
     return train_ds, valid_ds, test_ds
 

@@ -57,7 +57,7 @@ python tools/preprocess_data.py \
        --split-sentences
 </pre>
 
-The output will be two files named, in this case, `my-tape_text_sentence.bin` and `my-tape_text_sentence.idx`. The `--data-path` specified in later TAPE training is the full path and new filename, but without the file extension.
+The output will be two files named, in this case, `my-tape_text_sentence.bin` and `my-tape_text_sentence.idx`. The `--data-path` specified in later MSA training is the full path and new filename, but without the file extension.
 
 Further command line arguments are described in the source file [`preprocess_data.py`](./tools/preprocess_data.py).
 

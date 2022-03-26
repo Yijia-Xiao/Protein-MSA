@@ -1,7 +1,7 @@
 
 # Megatron-Protein
 
-This directory contains scripts that preprocess TAPE's pfam dataset to the format required by Megatron-LM.
+This directory contains scripts that preprocess MSA data to the format required by Megatron-LM.
 
 ## Step 1: pfam to json
 
