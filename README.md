@@ -1,5 +1,11 @@
 # Pretrain Protein Language Model with Megatron-LM
 
+
+pybind11/pybind11.h: No such file or directory
+pip install pybind11
+
+docker run -it --name msa --network host --gpus all -v /home/xyj/Protein-MSA/:/root -v /home/xyj:/workspace yijiaxiao/protein:pretrain_ssh /bin/bash
+
 # Setup
 
 ## Docker Environment
