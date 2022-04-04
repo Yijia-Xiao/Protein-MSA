@@ -154,62 +154,12 @@ def get_msa_masks_and_position_ids(data,
                                    cls_token,
                                    reset_position_ids,
                                    reset_attention_mask):
-    """Build masks and position id for (bidirected) protein model, where multiple protein sequences are concatinated to a single sequences, like
-    [CLS] seq1 [CLS] seq2 [CLS] seq3 ...
-    We do this mainly because protein sequences has various lengths, ranging from 100 to 10000. 
-    We want to avoid too many padding tokens, so we concat short seqs as many as possible until it reaches the max_seq_length limit.
-    Consequently, the attention mask should be (1 - a block diaganol matrix), and position ids should be recalculated for each subseq.
-    """
-
     # Extract batch size and sequence length.
     micro_batch_size, seq_length = data.size()
-
-    # Attention mask (lower triangular).
-    # if reset_attention_mask:
-    #     att_mask_batch = micro_batch_size
-    # else:
-    #     att_mask_batch = 1
-
-    # attention_mask = torch.ones(
-    #     (att_mask_batch, seq_length, seq_length), device=data.device).view(
-    #         att_mask_batch, 1, seq_length, seq_length)
 
     # Position ids.
     position_ids = torch.arange(seq_length, dtype=torch.long,
                                 device=data.device)
     position_ids = position_ids.unsqueeze(0).expand_as(data)
     return position_ids
-
-    # We need to clone as the ids will be modifed based on batch index.
-    if reset_position_ids:
-        position_ids = position_ids.clone()
-
-    if reset_position_ids or reset_attention_mask:
-        # Loop through the batches:
-        for b in range(micro_batch_size):
-
-            # Find indecies where CLS token is.
-            cls_index = position_ids[b, data[b] == cls_token]
-            # Detach indecies from positions if going to modify positions.
-            if reset_position_ids:
-                cls_index = cls_index.clone()
-
-            # Loop through concated CLS indecies:
-            for j in range(1, cls_index.size()[0]):
-                concat_cls = cls_index[j] 
-                # Mask attention loss.
-                # if reset_attention_mask:
-                #     attention_mask[b, 0, :concat_cls, concat_cls:] = 0
-                #     attention_mask[b, 0, concat_cls:, :concat_cls] = 0
-                # Reset positions.
-                if reset_position_ids:
-                    base = position_ids[b, concat_cls].clone()
-                    position_ids[b, concat_cls:] -= base
-
-    # Convert attention mask to binary:
-    # attention_mask = (attention_mask < 0.5)
-
-    # return attention_mask, position_ids
-    return position_ids
-
 
