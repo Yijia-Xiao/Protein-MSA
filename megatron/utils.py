@@ -154,7 +154,7 @@ def get_msa_masks_and_position_ids(data,
                                    cls_token,
                                    reset_position_ids,
                                    reset_attention_mask):
-    """Build masks and position id for (bidirected) tape model, where multiple protein sequences are concatinated to a single sequences, like
+    """Build masks and position id for (bidirected) protein model, where multiple protein sequences are concatinated to a single sequences, like
     [CLS] seq1 [CLS] seq2 [CLS] seq3 ...
     We do this mainly because protein sequences has various lengths, ranging from 100 to 10000. 
     We want to avoid too many padding tokens, so we concat short seqs as many as possible until it reaches the max_seq_length limit.
